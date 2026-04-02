@@ -2,7 +2,7 @@
 
 A personal productivity dashboard for Technical Program Managers, built with FastAPI and designed to work with Claude AI.
 
-**Author:** [Steven Balalis](https://github.com/steve-balalis-pm)
+**Author:** [Steven Balalis](https://github.com/balaliss) ([@balaliss](https://github.com/balaliss))
 
 ## Features
 
@@ -126,4 +126,4 @@ This is a personal productivity tool, but PRs for bug fixes or generic improveme
 
 ---
 
-Built by [Steven Balalis](https://github.com/steve-balalis-pm) - TPM tools for TPMs.
+Built by [Steven Balalis](https://github.com/balaliss) - TPM tools for TPMs.
