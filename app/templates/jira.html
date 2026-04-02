@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+
+{% block title %}Jira Dashboard - Chief of Staff Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Jira Dashboard</h1>
+    <div class="header-actions">
+        {% if not is_live %}
+        <span class="badge badge-warning" title="Set JIRA_API_TOKEN environment variable for live data">Demo Mode</span>
+        {% else %}
+        <span class="badge badge-success">Live</span>
+        {% endif %}
+        <button class="btn btn-secondary" hx-get="/jira/refresh" hx-target="#jira-content" hx-swap="innerHTML">
+            ↻ Refresh
+        </button>
+    </div>
+</div>
+
+<div id="jira-content">
+    {# Field Completeness Summary #}
+    <div class="card card-alert">
+        <div class="card-header">
+            <h3>TPM Field Completeness</h3>
+            <span class="health-score health-{{ 'good' if field_summary.health_score >= 80 else 'warning' if field_summary.health_score >= 50 else 'bad' }}">
+                {{ field_summary.health_score }}% healthy
+            </span>
+        </div>
+        <div class="card-body">
+            {% if field_summary.tickets_with_issues > 0 %}
+            <p class="summary-text">
+                <strong>{{ field_summary.tickets_with_issues }}</strong> of {{ field_summary.total_tickets }} tickets need attention
+            </p>
+            <div class="issue-breakdown">
+                {% if field_summary.breakdown.missing_confluence > 0 %}
+                <span class="issue-badge issue-confluence">{{ field_summary.breakdown.missing_confluence }} missing Confluence</span>
+                {% endif %}
+                {% if field_summary.breakdown.missing_acceptance_criteria > 0 %}
+                <span class="issue-badge issue-ac">{{ field_summary.breakdown.missing_acceptance_criteria }} missing AC</span>
+                {% endif %}
+                {% if field_summary.breakdown.missing_due_date > 0 %}
+                <span class="issue-badge issue-date">{{ field_summary.breakdown.missing_due_date }} missing due date</span>
+                {% endif %}
+                {% if field_summary.breakdown.stale > 0 %}
+                <span class="issue-badge issue-stale">{{ field_summary.breakdown.stale }} stale</span>
+                {% endif %}
+            </div>
+            
+            {% if field_summary.top_issues %}
+            <details class="issues-detail">
+                <summary>View tickets with issues</summary>
+                <ul class="ticket-issue-list">
+                    {% for item in field_summary.top_issues %}
+                    <li>
+                        <a href="{{ item.url }}" target="_blank" class="ticket-link">{{ item.key }}</a>
+                        <span class="ticket-summary">{{ item.summary[:50] }}{% if item.summary|length > 50 %}...{% endif %}</span>
+                        <div class="ticket-issues">
+                            {% for issue in item.issues %}
+                            <span class="issue-tag severity-{{ issue.severity }}">{{ issue.field }}</span>
+                            {% endfor %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+            {% endif %}
+            {% else %}
+            <p class="success-text">All tickets have required fields</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Dashboard Grid #}
+    <div class="jira-grid">
+        {# Overdue Tickets #}
+        <div class="card card-danger">
+            <div class="card-header">
+                <h3>Overdue</h3>
+                <span class="badge badge-danger">{{ data.overdue|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.overdue %}
+                <ul class="ticket-list">
+                    {% for ticket in data.overdue[:5] %}
+                    <li class="ticket-item ticket-overdue">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                        <span class="ticket-due">Due: {{ ticket.due_date }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state">No overdue tickets</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Upcoming Deadlines #}
+        <div class="card">
+            <div class="card-header">
+                <h3>Upcoming Deadlines</h3>
+                <span class="badge">{{ data.upcoming_deadlines|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.upcoming_deadlines %}
+                <ul class="ticket-list">
+                    {% for ticket in data.upcoming_deadlines[:5] %}
+                    <li class="ticket-item">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                        <span class="ticket-due">{{ ticket.due_date }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state">No upcoming deadlines</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# My Open Tickets #}
+        <div class="card">
+            <div class="card-header">
+                <h3>My Open Tickets</h3>
+                <span class="badge">{{ data.my_tickets|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.my_tickets %}
+                <ul class="ticket-list">
+                    {% for ticket in data.my_tickets[:5] %}
+                    <li class="ticket-item">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                        <span class="ticket-status status-{{ ticket.status|lower|replace(' ', '-') }}">{{ ticket.status }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% if data.my_tickets|length > 5 %}
+                <p class="more-link">+{{ data.my_tickets|length - 5 }} more</p>
+                {% endif %}
+                {% else %}
+                <p class="empty-state">No assigned tickets</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# In Progress #}
+        <div class="card">
+            <div class="card-header">
+                <h3>In Progress</h3>
+                <span class="badge badge-info">{{ data.in_progress|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.in_progress %}
+                <ul class="ticket-list">
+                    {% for ticket in data.in_progress[:5] %}
+                    <li class="ticket-item">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                        <span class="ticket-assignee">{{ ticket.assignee or 'Unassigned' }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state">No tickets in progress</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# High Priority #}
+        <div class="card card-warning">
+            <div class="card-header">
+                <h3>High Priority</h3>
+                <span class="badge badge-warning">{{ data.high_priority|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.high_priority %}
+                <ul class="ticket-list">
+                    {% for ticket in data.high_priority[:5] %}
+                    <li class="ticket-item">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                        <span class="ticket-priority priority-{{ ticket.priority|lower }}">{{ ticket.priority }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state">No high priority tickets</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Stale Tickets #}
+        <div class="card card-stale">
+            <div class="card-header">
+                <h3>Stale (5+ days)</h3>
+                <span class="badge badge-stale">{{ data.stale|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.stale %}
+                <ul class="ticket-list">
+                    {% for ticket in data.stale[:5] %}
+                    <li class="ticket-item">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                        <span class="ticket-stale-days">{{ ticket.days_since_update }} days</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state success-text">No stale tickets</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# TPE Tickets #}
+        <div class="card card-tpe">
+            <div class="card-header">
+                <h3>TPE Tickets</h3>
+                <span class="badge badge-tpe">{{ data.tpe_tickets|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.tpe_tickets %}
+                <ul class="ticket-list">
+                    {% for ticket in data.tpe_tickets[:5] %}
+                    <li class="ticket-item">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                        <span class="ticket-status status-{{ ticket.status|lower|replace(' ', '-') }}">{{ ticket.status }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state">No TPE tickets</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Recently Updated #}
+        <div class="card">
+            <div class="card-header">
+                <h3>Recently Updated (48h)</h3>
+                <span class="badge">{{ data.recently_updated|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.recently_updated %}
+                <ul class="ticket-list">
+                    {% for ticket in data.recently_updated[:5] %}
+                    <li class="ticket-item">
+                        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+                        <span class="ticket-summary">{{ ticket.summary[:40] }}{% if ticket.summary|length > 40 %}...{% endif %}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state">No recent updates</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        background: var(--bg-secondary);
+    }
+    
+    .badge-success { background: #059669; color: white; }
+    .badge-warning { background: #d97706; color: white; }
+    .badge-danger { background: #dc2626; color: white; }
+    .badge-info { background: #2563eb; color: white; }
+    .badge-stale { background: #9333ea; color: white; }
+    .badge-tpe { background: #0891b2; color: white; }
+    
+    .jira-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 1.25rem;
+    }
+    
+    .card-danger { border-left: 4px solid #dc2626; }
+    .card-warning { border-left: 4px solid #d97706; }
+    .card-stale { border-left: 4px solid #9333ea; }
+    .card-tpe { border-left: 4px solid #0891b2; }
+    .card-alert { border-left: 4px solid #3b82f6; margin-bottom: 1.5rem; }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .card-header h3 {
+        margin: 0;
+        font-size: 1rem;
+    }
+    
+    .ticket-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .ticket-item {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+        align-items: center;
+    }
+    
+    .ticket-item:last-child {
+        border-bottom: none;
+    }
+    
+    .ticket-key {
+        font-weight: 600;
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    
+    .ticket-key:hover {
+        text-decoration: underline;
+    }
+    
+    .ticket-summary {
+        flex: 1;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    
+    .ticket-status, .ticket-priority, .ticket-due, .ticket-assignee, .ticket-stale-days {
+        font-size: 0.75rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 0.25rem;
+        background: var(--bg-secondary);
+    }
+    
+    .ticket-overdue .ticket-due {
+        background: #fecaca;
+        color: #991b1b;
+    }
+    
+    .ticket-stale-days {
+        background: #e9d5ff;
+        color: #6b21a8;
+    }
+    
+    .status-in-progress { background: #dbeafe; color: #1e40af; }
+    .status-blocked { background: #fecaca; color: #991b1b; }
+    .status-to-do { background: #fef3c7; color: #92400e; }
+    
+    .priority-highest { background: #fecaca; color: #991b1b; }
+    .priority-high { background: #fed7aa; color: #9a3412; }
+    
+    .empty-state {
+        color: var(--text-muted);
+        font-style: italic;
+        text-align: center;
+        padding: 1rem;
+    }
+    
+    .success-text {
+        color: #059669;
+    }
+    
+    .more-link {
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        padding-top: 0.5rem;
+    }
+    
+    /* Health Score */
+    .health-score {
+        font-weight: 600;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.85rem;
+    }
+    
+    .health-good { background: #d1fae5; color: #065f46; }
+    .health-warning { background: #fef3c7; color: #92400e; }
+    .health-bad { background: #fecaca; color: #991b1b; }
+    
+    /* Issue Breakdown */
+    .summary-text {
+        margin-bottom: 0.75rem;
+    }
+    
+    .issue-breakdown {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .issue-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    
+    .issue-confluence { background: #e0e7ff; color: #3730a3; }
+    .issue-ac { background: #fef3c7; color: #92400e; }
+    .issue-date { background: #ede9fe; color: #5b21b6; }
+    .issue-stale { background: #fce7f3; color: #9d174d; }
+    
+    .issues-detail {
+        margin-top: 0.75rem;
+    }
+    
+    .issues-detail summary {
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--primary);
+    }
+    
+    .ticket-issue-list {
+        list-style: none;
+        padding: 0.5rem 0;
+        margin: 0;
+    }
+    
+    .ticket-issue-list li {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+        align-items: center;
+    }
+    
+    .ticket-link {
+        font-weight: 600;
+        color: var(--primary);
+    }
+    
+    .ticket-issues {
+        display: flex;
+        gap: 0.25rem;
+    }
+    
+    .issue-tag {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        background: var(--bg-secondary);
+    }
+    
+    .severity-high { background: #fecaca; color: #991b1b; }
+    .severity-medium { background: #fef3c7; color: #92400e; }
+    .severity-low { background: #e5e7eb; color: #374151; }
+</style>
+{% endblock %}

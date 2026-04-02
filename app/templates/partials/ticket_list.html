@@ -1,0 +1,22 @@
+{# Partial template for ticket list (HTMX refresh) #}
+{% if error %}
+<p class="error-state">{{ error }}</p>
+{% elif tickets %}
+<ul class="ticket-list">
+    {% for ticket in tickets[:10] %}
+    <li class="ticket-item {% if ticket.is_overdue %}ticket-overdue{% endif %}">
+        <a href="{{ ticket.url }}" target="_blank" class="ticket-key">{{ ticket.key }}</a>
+        <span class="ticket-summary">{{ ticket.summary[:50] }}{% if ticket.summary|length > 50 %}...{% endif %}</span>
+        {% if ticket.due_date %}
+        <span class="ticket-due">{{ ticket.due_date }}</span>
+        {% endif %}
+        <span class="ticket-status status-{{ ticket.status|lower|replace(' ', '-') }}">{{ ticket.status }}</span>
+    </li>
+    {% endfor %}
+</ul>
+{% if tickets|length > 10 %}
+<p class="more-link">+{{ tickets|length - 10 }} more</p>
+{% endif %}
+{% else %}
+<p class="empty-state">No tickets found</p>
+{% endif %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Meeting Notes - Chief of Staff Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Meeting Notes Inbox</h1>
+    <p class="page-subtitle">Upload notes, extract action items, push to tasks</p>
+</div>
+
+<div class="grid grid-2">
+    <!-- Upload Form -->
+    <div class="card">
+        <div class="card-header blue">📝 Add Meeting Notes</div>
+        <div class="card-body">
+            <form hx-post="/notes/upload" hx-encoding="multipart/form-data" hx-target="#notes-list" hx-swap="afterbegin">
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" name="title" class="form-input" placeholder="e.g., Chris 1:1 - March 27">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Upload File (.txt, .md, .docx)</label>
+                    <input type="file" name="file" class="form-input" accept=".txt,.md,.docx">
+                </div>
+                
+                <p class="text-muted text-sm mb-4">— OR —</p>
+                
+                <div class="form-group">
+                    <label class="form-label">Paste Notes</label>
+                    <textarea name="content" class="form-textarea" placeholder="Paste meeting notes here..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Upload & Extract Actions</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Processing Queue -->
+    <div class="card">
+        <div class="card-header orange">📥 Processing Queue</div>
+        <div class="card-body" id="notes-list">
+            {% if notes %}
+                {% for note in notes %}
+                <div class="note-card" id="note-{{ note.id }}">
+                    <div class="note-title">{{ note.title or note.filename or 'Untitled Note' }}</div>
+                    <div class="note-content">{{ note.content[:200] }}{% if note.content|length > 200 %}...{% endif %}</div>
+                    
+                    {% if note.action_items %}
+                    <div class="action-items-list">
+                        <div class="section-label">Extracted Action Items ({{ note.action_items | length }})</div>
+                        {% for action in note.action_items %}
+                        {% if not action.pushed_to_tasks and not action.dismissed %}
+                        <div class="action-item" id="action-{{ action.id }}">
+                            <div class="action-text">
+                                {{ action.text }}
+                                {% if action.assignee %}
+                                <span class="task-tag">{{ action.assignee }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="action-buttons">
+                                <form hx-post="/notes/action/{{ action.id }}/push" hx-target="#action-{{ action.id }}" hx-swap="outerHTML" style="display:inline;">
+                                    <input type="hidden" name="section" value="this_week">
+                                    <button type="submit" class="btn btn-sm btn-primary">→ Tasks</button>
+                                </form>
+                                <button class="btn btn-sm btn-secondary" 
+                                        hx-post="/notes/action/{{ action.id }}/dismiss"
+                                        hx-target="#action-{{ action.id }}"
+                                        hx-swap="outerHTML">Skip</button>
+                            </div>
+                        </div>
+                        {% elif action.pushed_to_tasks %}
+                        <div class="action-item" style="opacity: 0.5;">
+                            <div class="action-text">✓ {{ action.text }}</div>
+                            <span class="task-tag" style="background: var(--color-green-bg); color: var(--color-green);">Pushed</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="flex justify-between items-center mt-4">
+                        <span class="text-sm text-muted">{{ note.created_at.strftime('%b %d, %Y %H:%M') if note.created_at else '' }}</span>
+                        <button class="btn btn-sm btn-secondary"
+                                hx-post="/notes/{{ note.id }}/archive"
+                                hx-target="#note-{{ note.id }}"
+                                hx-swap="delete">Archive</button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <p>No meeting notes in queue</p>
+                    <p class="text-sm text-muted">Upload or paste notes to extract action items</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Pattern Reference -->
+<div class="card mt-4">
+    <div class="card-header purple">🔍 Action Item Detection Patterns</div>
+    <div class="card-body">
+        <p class="text-muted mb-4">The parser looks for these patterns in your notes:</p>
+        <ul style="padding-left: 20px; color: var(--color-text-muted);">
+            <li><code>action item:</code> or <code>AI:</code></li>
+            <li><code>TODO:</code> or <code>follow up:</code></li>
+            <li><code>Steve:</code> or <code>Steven:</code></li>
+            <li><code>- [ ]</code> checkbox items</li>
+            <li>Table rows with Owner = Steve/Steven</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

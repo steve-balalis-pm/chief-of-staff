@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Chief of Staff Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Overview of tasks, progress, and priorities</p>
+</div>
+
+<div class="stats-bar">
+    <div class="stat-card red">
+        <div class="stat-number">{{ stats.today_open }}</div>
+        <div class="stat-label">Today's Tasks</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-number">{{ stats.today_done }}</div>
+        <div class="stat-label">Done Today</div>
+    </div>
+    <div class="stat-card yellow">
+        <div class="stat-number">{{ stats.week_open }}</div>
+        <div class="stat-label">This Week</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-number">{{ stats.total_done_this_week }}</div>
+        <div class="stat-label">Completed</div>
+    </div>
+    {% if deadlines.overdue_count > 0 %}
+    <div class="stat-card danger">
+        <div class="stat-number">{{ deadlines.overdue_count }}</div>
+        <div class="stat-label">Overdue</div>
+    </div>
+    {% endif %}
+    {% if deadlines.upcoming_count > 0 %}
+    <div class="stat-card purple">
+        <div class="stat-number">{{ deadlines.upcoming_count }}</div>
+        <div class="stat-label">Due Soon</div>
+    </div>
+    {% endif %}
+</div>
+
+{# Deadlines Widget #}
+{% if deadlines.overdue or deadlines.upcoming %}
+<div class="deadlines-section">
+    {% if deadlines.overdue %}
+    <div class="card card-deadline-overdue">
+        <div class="card-header danger">⚠️ Overdue Tickets {% if not jira_live %}<span class="demo-badge">(Demo)</span>{% endif %}</div>
+        <div class="card-body">
+            <ul class="deadline-list">
+                {% for ticket in deadlines.overdue %}
+                <li class="deadline-item overdue">
+                    <a href="{{ ticket.url }}" target="_blank" class="deadline-key">{{ ticket.key }}</a>
+                    <span class="deadline-summary">{{ ticket.summary[:45] }}{% if ticket.summary|length > 45 %}...{% endif %}</span>
+                    <span class="deadline-date">Due: {{ ticket.due_date }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if deadlines.upcoming %}
+    <div class="card card-deadline-upcoming">
+        <div class="card-header purple">📅 Coming Up (7 days) {% if not jira_live %}<span class="demo-badge">(Demo)</span>{% endif %}</div>
+        <div class="card-body">
+            <ul class="deadline-list">
+                {% for ticket in deadlines.upcoming %}
+                <li class="deadline-item">
+                    <a href="{{ ticket.url }}" target="_blank" class="deadline-key">{{ ticket.key }}</a>
+                    <span class="deadline-summary">{{ ticket.summary[:45] }}{% if ticket.summary|length > 45 %}...{% endif %}</span>
+                    <span class="deadline-date">{{ ticket.due_date }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            <a href="/jira" class="view-all-link">View all in Jira Dashboard →</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="grid grid-2">
+    <!-- Today's Tasks -->
+    <div class="card">
+        <div class="card-header red">🔴 Active Today</div>
+        <div class="card-body task-list-sortable">
+            {% if tasks.active_today %}
+                {% for task in tasks.active_today[:10] %}
+                <div class="task-item {% if task.done %}done{% endif %}" id="task-{{ task.id or task.line_hash }}">
+                    <input type="checkbox" class="task-checkbox" 
+                           {% if task.done %}checked{% endif %}
+                           {% if task.id %}
+                           hx-post="/tasks/toggle/{{ task.id }}"
+                           {% else %}
+                           hx-post="/tasks/toggle-hash/{{ task.line_hash }}"
+                           {% endif %}
+                           hx-swap="none"
+                           hx-on::after-request="this.closest('.task-item').classList.toggle('done')">
+                    <div class="task-content">
+                        <div class="task-text">{{ task.content | truncate(100) | markdown | safe }}</div>
+                        <div class="task-meta">
+                            {% if task.jira_key %}
+                            <span class="task-tag jira">{{ task.jira_key }}</span>
+                            {% endif %}
+                            {% if task.priority == 'high' %}
+                            <span class="task-tag priority-high">High</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <p>No active tasks for today!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- This Week -->
+    <div class="card">
+        <div class="card-header yellow">🟡 This Week</div>
+        <div class="card-body task-list-sortable">
+            {% if tasks.this_week %}
+                {% for task in tasks.this_week[:8] %}
+                <div class="task-item {% if task.done %}done{% endif %}" id="dash-week-{{ task.id or task.line_hash }}">
+                    <input type="checkbox" class="task-checkbox" 
+                           {% if task.done %}checked{% endif %}
+                           {% if task.id %}
+                           hx-post="/tasks/toggle/{{ task.id }}"
+                           {% else %}
+                           hx-post="/tasks/toggle-hash/{{ task.line_hash }}"
+                           {% endif %}
+                           hx-swap="none"
+                           hx-on::after-request="this.closest('.task-item').classList.toggle('done')">
+                    <div class="task-content">
+                        <div class="task-text">{{ task.content | truncate(80) | markdown | safe }}</div>
+                        <div class="task-meta">
+                            {% if task.jira_key %}
+                            <span class="task-tag jira">{{ task.jira_key }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if tasks.this_week | length > 8 %}
+                <p class="text-muted text-sm mt-4" style="order: 2;">+ {{ tasks.this_week | length - 8 }} more...</p>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <p>No tasks for this week</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Ongoing / Background -->
+    <div class="card">
+        <div class="card-header green">🟢 Ongoing</div>
+        <div class="card-body task-list-sortable">
+            {% if tasks.ongoing %}
+                {% for task in tasks.ongoing[:5] %}
+                <div class="task-item {% if task.done %}done{% endif %}" id="dash-ongoing-{{ task.id or task.line_hash }}">
+                    <input type="checkbox" class="task-checkbox"
+                           {% if task.done %}checked{% endif %}
+                           {% if task.id %}
+                           hx-post="/tasks/toggle/{{ task.id }}"
+                           {% else %}
+                           hx-post="/tasks/toggle-hash/{{ task.line_hash }}"
+                           {% endif %}
+                           hx-swap="none"
+                           hx-on::after-request="this.closest('.task-item').classList.toggle('done')">
+                    <div class="task-content">
+                        <div class="task-text">{{ task.content | truncate(80) | markdown | safe }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No ongoing tasks</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Completed This Week -->
+    <div class="card">
+        <div class="card-header blue">✅ Completed This Week</div>
+        <div class="card-body">
+            {% if tasks.completed %}
+                {% for task in tasks.completed[:5] %}
+                <div class="task-item done">
+                    <input type="checkbox" class="task-checkbox" checked disabled>
+                    <div class="task-content">
+                        <div class="task-text">{{ task.content | truncate(80) | markdown | safe }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if tasks.completed | length > 5 %}
+                <p class="text-muted text-sm mt-4">+ {{ tasks.completed | length - 5 }} more completed</p>
+                {% endif %}
+            {% else %}
+                <p class="text-muted">No completed tasks yet</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card full-width mt-4">
+    <div class="card-header purple">⚡ Quick Actions</div>
+    <div class="card-body">
+        <div class="flex gap-4">
+            <a href="/tasks" class="btn btn-primary">View All Tasks</a>
+            <a href="/portfolio" class="btn btn-secondary">View Portfolio</a>
+            <a href="/notes" class="btn btn-secondary">Add Meeting Notes</a>
+            <a href="/portfolio/export?weeks=2" class="btn btn-secondary" target="_blank">Export for 1:1</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio - Chief of Staff Hub{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h1 class="page-title">Portfolio</h1>
+        <p class="page-subtitle">Track accomplishments for manager 1:1s</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="/portfolio/export?weeks={{ weeks_shown }}" class="btn btn-primary" target="_blank">
+            📄 Export for Chris 1:1
+        </a>
+        <select class="form-select" style="width: auto;" onchange="window.location.href='/portfolio?weeks=' + this.value">
+            <option value="2" {% if weeks_shown == 2 %}selected{% endif %}>Last 2 weeks</option>
+            <option value="4" {% if weeks_shown == 4 %}selected{% endif %}>Last 4 weeks</option>
+            <option value="8" {% if weeks_shown == 8 %}selected{% endif %}>Last 8 weeks</option>
+        </select>
+    </div>
+</div>
+
+<div class="grid grid-3">
+    <!-- Accomplishments by Week -->
+    <div class="card" style="grid-column: 1 / 3;">
+        <div class="card-header green">✅ Completed Work</div>
+        <div class="card-body">
+            {% for week in weeks_data %}
+            <div class="week-group">
+                <div class="week-header">
+                    <span class="week-label">
+                        {{ week.week_label }}
+                        {% if week.is_current_week %}
+                        <span class="task-tag priority-high" style="margin-left: 8px;">Current Week</span>
+                        {% endif %}
+                    </span>
+                    <span class="week-count">{{ week.count }} item{% if week.count != 1 %}s{% endif %}</span>
+                </div>
+                <div class="week-items">
+                    {% if week.accomplishments %}
+                        {% for item in week.accomplishments %}
+                        <div class="accomplishment-item">
+                            <div class="accomplishment-title">{{ item.title }}</div>
+                            <div class="accomplishment-meta">
+                                {% if item.source_jira_key %}
+                                <a href="https://accoladeinc.atlassian.net/browse/{{ item.source_jira_key }}" target="_blank">
+                                    {{ item.source_jira_key }}
+                                </a> •
+                                {% endif %}
+                                {{ item.completed_date }}
+                            </div>
+                            {% if item.impact %}
+                            <div class="accomplishment-impact">
+                                <strong>Impact:</strong> {{ item.impact }}
+                            </div>
+                            {% else %}
+                            <form hx-post="/portfolio/impact/{{ item.id }}" hx-swap="outerHTML" class="mt-4">
+                                <input type="text" name="impact" class="form-input"
+                                       placeholder="Add impact note (e.g., 'Unblocked partner launch')">
+                                <button type="submit" class="btn btn-sm btn-secondary mt-4">Save Impact</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-sm" style="padding: 12px;">No completed items this week</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- In-Flight Initiatives -->
+    <div class="card">
+        <div class="card-header purple" style="justify-content: space-between;">
+            <span>🚀 In-Flight Initiatives</span>
+            <button class="btn-initiative-edit"
+                    onclick="document.getElementById('add-initiative-form').style.display = document.getElementById('add-initiative-form').style.display === 'none' ? 'block' : 'none'">
+                + Add
+            </button>
+        </div>
+        <div class="card-body">
+
+            <!-- Add initiative form (hidden by default) -->
+            <div id="add-initiative-form" style="display: none; margin-bottom: 16px;">
+                <form action="/portfolio/initiatives" method="post">
+                    <div class="form-group">
+                        <label class="form-label" style="font-size: 0.8rem;">Name</label>
+                        <input type="text" name="name" class="form-input" required placeholder="Initiative name">
+                    </div>
+                    <div class="grid grid-2" style="gap: 8px;">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.8rem;">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="In Progress" selected>In Progress</option>
+                                <option value="Planning">Planning</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Complete">Complete</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.8rem;">Target</label>
+                            <input type="text" name="target" class="form-input" placeholder="Q3 2026">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size: 0.8rem;">Owner</label>
+                        <input type="text" name="owner" class="form-input" placeholder="Who owns this?">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size: 0.8rem;">Description</label>
+                        <input type="text" name="description" class="form-input" placeholder="Brief description">
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                        <button type="button" class="btn btn-secondary btn-sm"
+                                onclick="document.getElementById('add-initiative-form').style.display='none'">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            {% for initiative in initiatives %}
+            <div class="initiative-card" id="initiative-{{ initiative.id }}">
+
+                <!-- Display view -->
+                <div id="initiative-display-{{ initiative.id }}">
+                    <div class="initiative-title">{{ initiative.name }}</div>
+                    <div class="initiative-meta">
+                        <span class="initiative-status">
+                            <span class="status-dot {% if initiative.status == 'In Progress' %}green{% elif initiative.status == 'Planning' %}{% else %}red{% endif %}"></span>
+                            {{ initiative.status }}
+                        </span>
+                        <span>Target: {{ initiative.target }}</span>
+                    </div>
+                    <div class="initiative-description">{{ initiative.description }}</div>
+                    <div class="text-sm text-muted mt-4">Owner: {{ initiative.owner }}</div>
+                    <div class="initiative-actions">
+                        <button class="btn-initiative-edit"
+                                onclick="toggleInitiativeEdit({{ initiative.id }})">Edit</button>
+                        <button class="btn-delete-task initiative-delete"
+                                onclick="handleInitiativeDelete(this, {{ initiative.id }})"
+                                title="Delete initiative">×</button>
+                    </div>
+                </div>
+
+                <!-- Edit view (hidden by default) -->
+                <div id="initiative-edit-{{ initiative.id }}" style="display: none;">
+                    <form action="/portfolio/initiatives/{{ initiative.id }}/update" method="post">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.8rem;">Name</label>
+                            <input type="text" name="name" class="form-input" value="{{ initiative.name }}" required>
+                        </div>
+                        <div class="grid grid-2" style="gap: 8px;">
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 0.8rem;">Status</label>
+                                <select name="status" class="form-select">
+                                    <option value="In Progress" {% if initiative.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Planning" {% if initiative.status == 'Planning' %}selected{% endif %}>Planning</option>
+                                    <option value="On Hold" {% if initiative.status == 'On Hold' %}selected{% endif %}>On Hold</option>
+                                    <option value="Complete" {% if initiative.status == 'Complete' %}selected{% endif %}>Complete</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="font-size: 0.8rem;">Target</label>
+                                <input type="text" name="target" class="form-input" value="{{ initiative.target }}">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.8rem;">Owner</label>
+                            <input type="text" name="owner" class="form-input" value="{{ initiative.owner }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 0.8rem;">Description</label>
+                            <input type="text" name="description" class="form-input" value="{{ initiative.description }}">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                            <button type="button" class="btn btn-secondary btn-sm"
+                                    onclick="toggleInitiativeEdit({{ initiative.id }})">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+            {% endfor %}
+
+        </div>
+    </div>
+</div>
+
+<!-- Export Preview -->
+<div class="card mt-4">
+    <div class="card-header blue">📋 1:1 Prep Preview</div>
+    <div class="card-body">
+        <p class="text-muted mb-4">Click "Export for Chris 1:1" to download a markdown summary of your accomplishments and initiatives.</p>
+        <div class="flex gap-2">
+            <a href="/portfolio/export?weeks=2" class="btn btn-secondary" target="_blank">Export Last 2 Weeks</a>
+            <a href="/portfolio/export?weeks=4" class="btn btn-secondary" target="_blank">Export Last 4 Weeks</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{# Partial template for field completeness check (HTMX refresh) #}
+<div class="field-check-results">
+    <div class="health-score-display">
+        <span class="health-score health-{{ 'good' if summary.health_score >= 80 else 'warning' if summary.health_score >= 50 else 'bad' }}">
+            {{ summary.health_score }}% healthy
+        </span>
+    </div>
+    
+    {% if summary.tickets_with_issues > 0 %}
+    <p class="summary-text">
+        <strong>{{ summary.tickets_with_issues }}</strong> of {{ summary.total_tickets }} tickets need attention
+    </p>
+    
+    <div class="issue-breakdown">
+        {% if summary.breakdown.missing_confluence > 0 %}
+        <span class="issue-badge issue-confluence">{{ summary.breakdown.missing_confluence }} missing Confluence</span>
+        {% endif %}
+        {% if summary.breakdown.missing_acceptance_criteria > 0 %}
+        <span class="issue-badge issue-ac">{{ summary.breakdown.missing_acceptance_criteria }} missing AC</span>
+        {% endif %}
+        {% if summary.breakdown.missing_due_date > 0 %}
+        <span class="issue-badge issue-date">{{ summary.breakdown.missing_due_date }} missing due date</span>
+        {% endif %}
+        {% if summary.breakdown.stale > 0 %}
+        <span class="issue-badge issue-stale">{{ summary.breakdown.stale }} stale</span>
+        {% endif %}
+    </div>
+    
+    {% if summary.top_issues %}
+    <details class="issues-detail">
+        <summary>View tickets with issues</summary>
+        <ul class="ticket-issue-list">
+            {% for item in summary.top_issues %}
+            <li>
+                <a href="{{ item.url }}" target="_blank" class="ticket-link">{{ item.key }}</a>
+                <span class="ticket-summary">{{ item.summary[:50] }}{% if item.summary|length > 50 %}...{% endif %}</span>
+                <div class="ticket-issues">
+                    {% for issue in item.issues %}
+                    <span class="issue-tag severity-{{ issue.severity }}">{{ issue.field }}</span>
+                    {% endfor %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </details>
+    {% endif %}
+    {% else %}
+    <p class="success-text">All tickets have required fields</p>
+    {% endif %}
+</div>

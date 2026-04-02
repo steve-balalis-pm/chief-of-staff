@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Reference - Chief of Staff Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Reference</h1>
+    <p class="page-subtitle">Team directory, tools, goals, and terminology</p>
+</div>
+
+<div class="grid grid-3">
+    <!-- Jupiter Team -->
+    <div class="card">
+        <div class="card-header blue">👥 Jupiter Team</div>
+        <div class="card-body">
+            {% if teams.jupiter %}
+                {% for member in teams.jupiter %}
+                <div class="team-card">
+                    <div class="team-member-name">{{ member.name }}</div>
+                    <div class="team-member-role">{{ member.role_focus or member.get('role___focus', '') }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No team data loaded</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Moneyball Team -->
+    <div class="card">
+        <div class="card-header purple">👥 Moneyball Team</div>
+        <div class="card-body">
+            {% if teams.moneyball %}
+                {% for member in teams.moneyball %}
+                <div class="team-card">
+                    <div class="team-member-name">{{ member.name }}</div>
+                    <div class="team-member-role">{{ member.role_focus or member.get('role___focus', '') }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No team data loaded</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Cross-Functional -->
+    <div class="card">
+        <div class="card-header green">👥 Cross-Functional</div>
+        <div class="card-body">
+            {% if teams.cross_functional %}
+                {% for member in teams.cross_functional %}
+                <div class="team-card">
+                    <div class="team-member-name">{{ member.name }}</div>
+                    <div class="team-member-role">{{ member.role_focus or member.get('role___focus', '') }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No cross-functional contacts loaded</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Live Confluence Pages -->
+<div class="card mt-4">
+    <div class="card-header blue" style="justify-content: space-between;">
+        <span>📄 Recent PARTFEEDS Updates</span>
+        {% if confluence.cached_at %}
+        <span class="text-sm text-muted" style="font-weight: 400; text-transform: none; letter-spacing: 0;">
+            Updated {{ confluence.cached_at }} — ask Claude to refresh
+        </span>
+        {% else %}
+        <span class="text-sm text-muted" style="font-weight: 400; text-transform: none; letter-spacing: 0;">
+            Ask Claude: "Refresh my Confluence cache"
+        </span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if confluence.error %}
+        <p class="text-muted text-sm" style="color: var(--color-red);">{{ confluence.error }}</p>
+        {% elif confluence.pages %}
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--color-border);">
+                    <th style="text-align: left; padding: 6px 10px; font-size: 0.78rem; color: var(--color-text-muted);">Page</th>
+                    <th style="text-align: left; padding: 6px 10px; font-size: 0.78rem; color: var(--color-text-muted);">Last Updated</th>
+                    <th style="text-align: left; padding: 6px 10px; font-size: 0.78rem; color: var(--color-text-muted);">By</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for page in confluence.pages %}
+                <tr style="border-bottom: 1px solid var(--color-border);">
+                    <td style="padding: 8px 10px;">
+                        <a href="{{ page.url }}" target="_blank">{{ page.title }}</a>
+                    </td>
+                    <td style="padding: 8px 10px; color: var(--color-text-muted); font-size: 0.85rem;">{{ page.last_updated or '—' }}</td>
+                    <td style="padding: 8px 10px; color: var(--color-text-muted); font-size: 0.85rem;">{{ page.updated_by or '—' }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted text-sm">No cached data yet. Ask Claude: <em>"Refresh my Confluence cache"</em> to populate this.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Confluence Spaces -->
+<div class="card mt-4">
+    <div class="card-header blue">📚 Confluence Spaces</div>
+    <div class="card-body">
+        <div class="grid grid-2">
+            <a href="https://accoladeinc.atlassian.net/wiki/spaces/PARTFEEDS/" 
+               target="_blank" 
+               class="workflow-card">
+                <div class="workflow-icon">📤</div>
+                <div class="workflow-info">
+                    <div class="workflow-title">PARTFEEDS — Partner Feeds (Outbound)</div>
+                    <div class="workflow-desc">Jupiter team documentation for outbound file feeds</div>
+                    <div class="workflow-link">Open in Confluence →</div>
+                </div>
+            </a>
+            <a href="https://accoladeinc.atlassian.net/wiki/spaces/CI/overview" 
+               target="_blank"
+               class="workflow-card">
+                <div class="workflow-icon">📥</div>
+                <div class="workflow-info">
+                    <div class="workflow-title">CI — Customer Implementation (Inbound)</div>
+                    <div class="workflow-desc">Inbound data integration documentation</div>
+                    <div class="workflow-link">Open in Confluence →</div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Workflows & Diagrams -->
+<div class="card mt-4">
+    <div class="card-header purple">📊 Workflows & Diagrams</div>
+    <div class="card-body">
+        <div class="grid grid-2">
+            <a href="https://www.figma.com/board/ZlrCjjizY0ZPYvGo7eee5O/T-Shirt-Estimator-%E2%80%94-Decision-Tree?node-id=0-1&p=f&t=NLxpfBAgC6B0QjAD-0" 
+               target="_blank" 
+               class="workflow-card">
+                <div class="workflow-icon">👕</div>
+                <div class="workflow-info">
+                    <div class="workflow-title">T-Shirt Estimator — Decision Tree</div>
+                    <div class="workflow-desc">Figma board for estimating ticket complexity (XS/S/M/L/XL)</div>
+                    <div class="workflow-link">Open in Figma →</div>
+                </div>
+            </a>
+            <a href="https://mermaid.ai/app/projects/e1f794d9-1dd4-4b6e-9362-723e279896ab/diagrams/4e79b908-c3f6-4cd8-af82-22fa10d6dce9/version/v0.1/edit" 
+               target="_blank"
+               class="workflow-card">
+                <div class="workflow-icon">🔀</div>
+                <div class="workflow-info">
+                    <div class="workflow-title">JUPITER Ticket Flow</div>
+                    <div class="workflow-desc">Mermaid diagram showing ticket lifecycle and workflow</div>
+                    <div class="workflow-link">Open in Mermaid →</div>
+                </div>
+            </a>
+            <a href="file:///Users/Steven.Balalis/Desktop/tpm-workspace/dashboard.html" 
+               target="_blank"
+               class="workflow-card">
+                <div class="workflow-icon">📊</div>
+                <div class="workflow-info">
+                    <div class="workflow-title">TPM Dashboard — Board Health</div>
+                    <div class="workflow-desc">Live Jira health metrics: ticket completeness, aging, velocity, field gaps</div>
+                    <div class="workflow-link">Open Dashboard →</div>
+                </div>
+            </a>
+            <a href="file:///Users/Steven.Balalis/Desktop/tpm-workspace/" 
+               target="_blank"
+               class="workflow-card">
+                <div class="workflow-icon">🗂️</div>
+                <div class="workflow-info">
+                    <div class="workflow-title">TPM Workspace</div>
+                    <div class="workflow-desc">Claude skills, field source references, and TPM tooling</div>
+                    <div class="workflow-link">Open Folder →</div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 2026 Goals -->
+<div class="grid grid-2 mt-4">
+    <div class="card">
+        <div class="card-header blue">🎯 Jupiter 2026 Goals</div>
+        <div class="card-body">
+            {% if goals.jupiter %}
+                <ol style="padding-left: 20px;">
+                {% for goal in goals.jupiter %}
+                    <li style="margin-bottom: 8px;">{{ goal }}</li>
+                {% endfor %}
+                </ol>
+            {% else %}
+                <p class="text-muted">No goals loaded</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header purple">🎯 Moneyball 2026 Goals</div>
+        <div class="card-body">
+            {% if goals.moneyball %}
+                <ol style="padding-left: 20px;">
+                {% for goal in goals.moneyball %}
+                    <li style="margin-bottom: 8px;">{{ goal }}</li>
+                {% endfor %}
+                </ol>
+            {% else %}
+                <p class="text-muted">No goals loaded</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tools & Links -->
+<div class="card mt-4">
+    <div class="card-header orange">🔧 Tools & Links</div>
+    <div class="card-body">
+        {% if tools %}
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--color-border);">
+                    <th style="text-align: left; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-muted);">Tool</th>
+                    <th style="text-align: left; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-muted);">Purpose</th>
+                    <th style="text-align: left; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-muted);">Link</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for tool in tools %}
+                <tr style="border-bottom: 1px solid var(--color-border);">
+                    <td style="padding: 10px 12px; font-weight: 500;">{{ tool.tool }}</td>
+                    <td style="padding: 10px 12px; color: var(--color-text-muted);">{{ tool.purpose }}</td>
+                    <td style="padding: 10px 12px;">
+                        {% if tool.link and tool.link != '—' %}
+                        <a href="{{ tool.link }}" target="_blank">Open →</a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No tools data loaded</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Terminology -->
+<div class="card mt-4">
+    <div class="card-header green">📖 Terminology</div>
+    <div class="card-body">
+        {% if terminology %}
+        <div class="grid grid-2">
+            {% for term in terminology %}
+            <div style="padding: 8px 0; border-bottom: 1px solid var(--color-border);">
+                <strong>{{ term.term }}</strong>
+                <span class="text-muted"> — {{ term.meaning }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">No terminology loaded. Make sure CLAUDE.md exists in the workspace root.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

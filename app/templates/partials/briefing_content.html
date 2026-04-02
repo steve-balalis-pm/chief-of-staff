@@ -1,0 +1,105 @@
+{# Briefing content partial for HTMX refresh #}
+
+{# Quick Stats Bar #}
+<div class="briefing-stats">
+    {% if briefing.summary_stats.overdue > 0 %}
+    <div class="briefing-stat stat-danger">
+        <span class="stat-value">{{ briefing.summary_stats.overdue }}</span>
+        <span class="stat-label">Overdue</span>
+    </div>
+    {% endif %}
+    <div class="briefing-stat stat-purple">
+        <span class="stat-value">{{ briefing.summary_stats.due_this_week }}</span>
+        <span class="stat-label">Due Soon</span>
+    </div>
+    <div class="briefing-stat stat-blue">
+        <span class="stat-value">{{ briefing.summary_stats.tasks_today }}</span>
+        <span class="stat-label">Tasks Today</span>
+    </div>
+    <div class="briefing-stat">
+        <span class="stat-value">{{ briefing.summary_stats.in_progress }}</span>
+        <span class="stat-label">In Progress</span>
+    </div>
+    <div class="briefing-stat stat-tpe">
+        <span class="stat-value">{{ briefing.summary_stats.tpe_tickets }}</span>
+        <span class="stat-label">TPE Tickets</span>
+    </div>
+    {% if briefing.summary_stats.stale_tickets > 0 %}
+    <div class="briefing-stat stat-warning">
+        <span class="stat-value">{{ briefing.summary_stats.stale_tickets }}</span>
+        <span class="stat-label">Stale</span>
+    </div>
+    {% endif %}
+</div>
+
+{# Focus Recommendations #}
+{% if briefing.focus_recommendations %}
+<div class="card focus-card">
+    <div class="card-header purple">💡 Today's Focus</div>
+    <div class="card-body">
+        <ul class="focus-list">
+            {% for rec in briefing.focus_recommendations %}
+            <li class="focus-item">{{ rec }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{# Briefing Sections #}
+<div class="briefing-grid">
+    {% for section in briefing.sections %}
+    <div class="card briefing-section priority-{{ section.priority }}">
+        <div class="card-header {{ 'red' if section.priority == 'critical' else 'yellow' if section.priority == 'high' else '' }}">
+            {{ section.icon }} {{ section.title }}
+            <span class="section-count">{{ section.items|length }}</span>
+        </div>
+        <div class="card-body">
+            {% if section.items %}
+            <ul class="briefing-list">
+                {% for item in section.items %}
+                <li class="briefing-item item-{{ item.type }}">
+                    {% if item.type == 'jira' %}
+                    <a href="{{ item.url }}" target="_blank" class="item-key">{{ item.key }}</a>
+                    <span class="item-summary">{{ item.summary[:50] }}{% if item.summary|length > 50 %}...{% endif %}</span>
+                    {% if item.due_date %}
+                    <span class="item-meta item-date">{{ item.due_date }}</span>
+                    {% endif %}
+                    {% if item.days_overdue %}
+                    <span class="item-meta item-overdue">{{ item.days_overdue }}d overdue</span>
+                    {% endif %}
+                    {% if item.days_since_update %}
+                    <span class="item-meta item-stale">{{ item.days_since_update }}d ago</span>
+                    {% endif %}
+                    {% if item.status %}
+                    <span class="item-meta item-status">{{ item.status }}</span>
+                    {% endif %}
+                    {% if item.priority %}
+                    <span class="item-meta item-priority priority-{{ item.priority|lower }}">{{ item.priority }}</span>
+                    {% endif %}
+                    
+                    {% elif item.type == 'task' %}
+                    <span class="item-task-content">{{ item.content[:60] }}{% if item.content|length > 60 %}...{% endif %}</span>
+                    {% if item.jira_key %}
+                    <span class="item-meta item-jira-ref">{{ item.jira_key }}</span>
+                    {% endif %}
+                    
+                    {% elif item.type == 'field_issue' %}
+                    <a href="{{ item.url }}" target="_blank" class="item-key">{{ item.key }}</a>
+                    <span class="item-summary">{{ item.summary[:40] }}{% if item.summary|length > 40 %}...{% endif %}</span>
+                    <span class="item-issues">
+                        {% for issue in item.issues %}
+                        <span class="issue-tag">{{ issue }}</span>
+                        {% endfor %}
+                    </span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state-sm">No items</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

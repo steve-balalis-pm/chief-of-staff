@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Chief of Staff Hub{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">📋</span>
+            <span class="brand-text">Chief of Staff Hub</span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link {% if active == 'dashboard' %}active{% endif %}">Dashboard</a>
+            <a href="/briefing" class="nav-link {% if active == 'briefing' %}active{% endif %}">Briefing</a>
+            <a href="/tasks" class="nav-link {% if active == 'tasks' %}active{% endif %}">Tasks</a>
+            <a href="/jira" class="nav-link {% if active == 'jira' %}active{% endif %}">Jira</a>
+            <a href="/portfolio" class="nav-link {% if active == 'portfolio' %}active{% endif %}">Portfolio</a>
+            <a href="/notes" class="nav-link {% if active == 'notes' %}active{% endif %}">Notes</a>
+            <a href="/reference" class="nav-link {% if active == 'reference' %}active{% endif %}">Reference</a>
+        </div>
+    </nav>
+    
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer class="footer">
+        <span>Chief of Staff Hub • Partner Feeds • Jupiter & Moneyball</span>
+    </footer>
+
+    <div id="toast-container"></div>
+
+    <script>
+        function showToast(message, type) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + (type || 'info');
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('toast-hide'); }, 3200);
+            setTimeout(() => { toast.remove(); }, 3700);
+        }
+
+        // Show error toast on any failed HTMX request
+        document.body.addEventListener('htmx:afterRequest', function (evt) {
+            if (!evt.detail.successful) {
+                showToast('Action failed — check logs/app.log for details.', 'error');
+            }
+        });
+
+        // Two-click delete for tasks
+        function handleTaskDelete(btn, taskId) {
+            if (btn.classList.contains('confirming')) {
+                htmx.ajax('DELETE', '/tasks/' + taskId, {
+                    target: btn.closest('.task-item'),
+                    swap: 'outerHTML'
+                });
+            } else {
+                btn.classList.add('confirming');
+                btn.textContent = 'Delete?';
+                btn.title = 'Click again to confirm';
+                setTimeout(function () {
+                    if (btn.classList.contains('confirming')) {
+                        btn.classList.remove('confirming');
+                        btn.textContent = '×';
+                        btn.title = 'Delete task';
+                    }
+                }, 3000);
+            }
+        }
+
+        // Two-click delete for initiatives
+        function handleInitiativeDelete(btn, initiativeId) {
+            if (btn.classList.contains('confirming')) {
+                htmx.ajax('DELETE', '/portfolio/initiatives/' + initiativeId, {
+                    target: btn.closest('.initiative-card'),
+                    swap: 'outerHTML'
+                });
+            } else {
+                btn.classList.add('confirming');
+                btn.textContent = 'Delete?';
+                setTimeout(function () {
+                    if (btn.classList.contains('confirming')) {
+                        btn.classList.remove('confirming');
+                        btn.textContent = '×';
+                    }
+                }, 3000);
+            }
+        }
+
+        // Toggle initiative edit form
+        function toggleInitiativeEdit(id) {
+            var form = document.getElementById('initiative-edit-' + id);
+            var display = document.getElementById('initiative-display-' + id);
+            if (form.style.display === 'none' || form.style.display === '') {
+                form.style.display = 'block';
+                display.style.display = 'none';
+            } else {
+                form.style.display = 'none';
+                display.style.display = 'block';
+            }
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

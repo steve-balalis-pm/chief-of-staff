@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Briefing - Chief of Staff Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ briefing.greeting }}</h1>
+        <p class="page-subtitle">{{ briefing.date }}</p>
+    </div>
+    <div class="header-actions">
+        {% if not jira_live %}
+        <span class="badge badge-warning" title="Set JIRA_API_TOKEN for live data">Demo Mode</span>
+        {% else %}
+        <span class="badge badge-success">Live</span>
+        {% endif %}
+        <button class="btn btn-secondary" hx-get="/briefing/refresh" hx-target="#briefing-content" hx-swap="innerHTML">
+            ↻ Refresh
+        </button>
+        <a href="/briefing/export" class="btn btn-primary" download>
+            📥 Export
+        </a>
+    </div>
+</div>
+
+<div id="briefing-content">
+    {# Quick Stats Bar #}
+    <div class="briefing-stats">
+        {% if briefing.summary_stats.overdue > 0 %}
+        <div class="briefing-stat stat-danger">
+            <span class="stat-value">{{ briefing.summary_stats.overdue }}</span>
+            <span class="stat-label">Overdue</span>
+        </div>
+        {% endif %}
+        <div class="briefing-stat stat-purple">
+            <span class="stat-value">{{ briefing.summary_stats.due_this_week }}</span>
+            <span class="stat-label">Due Soon</span>
+        </div>
+        <div class="briefing-stat stat-blue">
+            <span class="stat-value">{{ briefing.summary_stats.tasks_today }}</span>
+            <span class="stat-label">Tasks Today</span>
+        </div>
+        <div class="briefing-stat">
+            <span class="stat-value">{{ briefing.summary_stats.in_progress }}</span>
+            <span class="stat-label">In Progress</span>
+        </div>
+        <div class="briefing-stat stat-tpe">
+            <span class="stat-value">{{ briefing.summary_stats.tpe_tickets }}</span>
+            <span class="stat-label">TPE Tickets</span>
+        </div>
+        {% if briefing.summary_stats.stale_tickets > 0 %}
+        <div class="briefing-stat stat-warning">
+            <span class="stat-value">{{ briefing.summary_stats.stale_tickets }}</span>
+            <span class="stat-label">Stale</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# Focus Recommendations #}
+    {% if briefing.focus_recommendations %}
+    <div class="card focus-card">
+        <div class="card-header purple">💡 Today's Focus</div>
+        <div class="card-body">
+            <ul class="focus-list">
+                {% for rec in briefing.focus_recommendations %}
+                <li class="focus-item">{{ rec }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Briefing Sections #}
+    <div class="briefing-grid">
+        {% for section in briefing.sections %}
+        <div class="card briefing-section priority-{{ section.priority }}">
+            <div class="card-header {{ 'red' if section.priority == 'critical' else 'yellow' if section.priority == 'high' else '' }}">
+                {{ section.icon }} {{ section.title }}
+                <span class="section-count">{{ section.items|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if section.items %}
+                <ul class="briefing-list">
+                    {% for item in section.items %}
+                    <li class="briefing-item item-{{ item.type }}">
+                        {% if item.type == 'jira' %}
+                        <a href="{{ item.url }}" target="_blank" class="item-key">{{ item.key }}</a>
+                        <span class="item-summary">{{ item.summary[:50] }}{% if item.summary|length > 50 %}...{% endif %}</span>
+                        {% if item.due_date %}
+                        <span class="item-meta item-date">{{ item.due_date }}</span>
+                        {% endif %}
+                        {% if item.days_overdue %}
+                        <span class="item-meta item-overdue">{{ item.days_overdue }}d overdue</span>
+                        {% endif %}
+                        {% if item.days_since_update %}
+                        <span class="item-meta item-stale">{{ item.days_since_update }}d ago</span>
+                        {% endif %}
+                        {% if item.status %}
+                        <span class="item-meta item-status">{{ item.status }}</span>
+                        {% endif %}
+                        {% if item.priority %}
+                        <span class="item-meta item-priority priority-{{ item.priority|lower }}">{{ item.priority }}</span>
+                        {% endif %}
+                        
+                        {% elif item.type == 'task' %}
+                        <span class="item-task-content">{{ item.content[:60] }}{% if item.content|length > 60 %}...{% endif %}</span>
+                        {% if item.jira_key %}
+                        <span class="item-meta item-jira-ref">{{ item.jira_key }}</span>
+                        {% endif %}
+                        
+                        {% elif item.type == 'field_issue' %}
+                        <a href="{{ item.url }}" target="_blank" class="item-key">{{ item.key }}</a>
+                        <span class="item-summary">{{ item.summary[:40] }}{% if item.summary|length > 40 %}...{% endif %}</span>
+                        <span class="item-issues">
+                            {% for issue in item.issues %}
+                            <span class="issue-tag">{{ issue }}</span>
+                            {% endfor %}
+                        </span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty-state-sm">No items</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+    }
+    
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        background: var(--bg-secondary);
+    }
+    
+    .badge-success { background: #059669; color: white; }
+    .badge-warning { background: #d97706; color: white; }
+    
+    /* Stats bar */
+    .briefing-stats {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .briefing-stat {
+        background: var(--color-surface);
+        padding: 12px 16px;
+        border-radius: var(--radius-md);
+        text-align: center;
+        min-width: 90px;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .briefing-stat .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+    
+    .briefing-stat .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+    }
+    
+    .stat-danger .stat-value { color: var(--color-red); }
+    .stat-danger { border-bottom: 3px solid var(--color-red); }
+    
+    .stat-warning .stat-value { color: var(--color-orange); }
+    .stat-warning { border-bottom: 3px solid var(--color-orange); }
+    
+    .stat-purple .stat-value { color: var(--color-purple); }
+    .stat-purple { border-bottom: 3px solid var(--color-purple); }
+    
+    .stat-blue .stat-value { color: var(--color-blue); }
+    .stat-blue { border-bottom: 3px solid var(--color-blue); }
+    
+    .stat-tpe .stat-value { color: #0891b2; }
+    .stat-tpe { border-bottom: 3px solid #0891b2; }
+    
+    /* Focus card */
+    .focus-card {
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--color-purple);
+    }
+    
+    .focus-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .focus-item {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--color-border);
+        font-size: 0.95rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .focus-item:last-child {
+        border-bottom: none;
+    }
+    
+    .focus-item::before {
+        content: '→';
+        color: var(--color-purple);
+        font-weight: bold;
+    }
+    
+    /* Briefing grid */
+    .briefing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 16px;
+    }
+    
+    .briefing-section.priority-critical {
+        border-left: 4px solid var(--color-red);
+    }
+    
+    .briefing-section.priority-high {
+        border-left: 4px solid var(--color-yellow);
+    }
+    
+    .section-count {
+        margin-left: auto;
+        background: rgba(255,255,255,0.3);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+    }
+    
+    /* Briefing list items */
+    .briefing-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .briefing-item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+    
+    .briefing-item:last-child {
+        border-bottom: none;
+    }
+    
+    .item-key {
+        font-weight: 600;
+        color: var(--color-accent);
+        font-size: 0.9rem;
+    }
+    
+    .item-summary, .item-task-content {
+        flex: 1;
+        font-size: 0.9rem;
+        color: var(--color-text-muted);
+    }
+    
+    .item-meta {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        background: var(--color-bg);
+    }
+    
+    .item-overdue {
+        background: var(--color-red);
+        color: white;
+    }
+    
+    .item-stale {
+        background: var(--color-orange-bg);
+        color: var(--color-orange);
+    }
+    
+    .item-date {
+        background: var(--color-purple-bg);
+        color: var(--color-purple);
+    }
+    
+    .item-status {
+        background: var(--color-blue-bg);
+        color: var(--color-blue);
+    }
+    
+    .item-priority.priority-highest,
+    .item-priority.priority-high {
+        background: var(--color-red-bg);
+        color: var(--color-red);
+    }
+    
+    .item-jira-ref {
+        background: var(--color-blue-bg);
+        color: var(--color-blue);
+        font-family: monospace;
+    }
+    
+    .item-issues {
+        display: flex;
+        gap: 4px;
+    }
+    
+    .issue-tag {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        background: var(--color-yellow-bg);
+        color: var(--color-yellow);
+    }
+    
+    .empty-state-sm {
+        color: var(--color-text-muted);
+        font-style: italic;
+        text-align: center;
+        padding: 1rem;
+    }
+</style>
+{% endblock %}
