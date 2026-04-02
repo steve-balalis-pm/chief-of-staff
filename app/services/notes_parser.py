@@ -1,28 +1,36 @@
 """Meeting notes parser service - extract action items."""
+import os
 import re
 from typing import List, Tuple, Optional
 from pathlib import Path
 
+# Configure your name for action item extraction
+# Set via environment variable or edit directly
+MY_NAME = os.environ.get("MY_NAME", "User")
+MY_NAME_VARIANTS = os.environ.get("MY_NAME_VARIANTS", MY_NAME).split(",")
+
 class NotesParserService:
     """Service for parsing meeting notes and extracting action items."""
     
-    ACTION_PATTERNS = [
-        r'(?:action item|todo|follow up|follow-up|AI)[\s:]+(.+)',
-        r'(?:Steve|Steven)[\s:]+(.+)',
-        r'(?:owner)[\s:]+(?:Steve|Steven)[\s,]+(.+)',
-        r'- \[ \]\s*(.+)',
-        r'action:\s*(.+)',
-    ]
-    
-    ASSIGNEE_PATTERNS = [
-        (r'\b(Steve|Steven)\b', 'Steven'),
-        (r'\b(Cara|Kara)\b', 'Cara'),
-        (r'\b(Ellen)\b', 'Ellen'),
-        (r'\b(Janet)\b', 'Janet'),
-        (r'\b(Robert)\b', 'Robert'),
-        (r'\b(Chris)\b', 'Chris'),
-        (r'\b(Jeff)\b', 'Jeff'),
-    ]
+    def __init__(self):
+        # Build patterns dynamically based on configured name
+        name_pattern = "|".join(MY_NAME_VARIANTS)
+        self.ACTION_PATTERNS = [
+            r'(?:action item|todo|follow up|follow-up|AI)[\s:]+(.+)',
+            rf'(?:{name_pattern})[\s:]+(.+)',
+            rf'(?:owner)[\s:]+(?:{name_pattern})[\s,]+(.+)',
+            r'- \[ \]\s*(.+)',
+            r'action:\s*(.+)',
+        ]
+        
+        # Customize these for your team members
+        self.ASSIGNEE_PATTERNS = [
+            (rf'\b({name_pattern})\b', MY_NAME),
+            # Add more team members as needed:
+            # (r'\b(TeammateName)\b', 'Teammate'),
+        ]
+        
+        self.my_name_pattern = name_pattern
     
     def extract_text(self, file_content: bytes, filename: str) -> str:
         """Extract text from file content based on file type."""
@@ -66,7 +74,7 @@ class NotesParserService:
                         seen.add(action_text)
                     break
         
-        # Also look for table rows with Owner column containing Steven
+        # Also look for table rows with Owner column containing my name
         table_items = self._extract_from_tables(content)
         for item, assignee in table_items:
             if item not in seen:
@@ -113,10 +121,10 @@ class NotesParserService:
                 if in_table and owner_col >= 0:
                     if len(cells) > owner_col:
                         owner = cells[owner_col]
-                        if re.search(r'\b(Steve|Steven)\b', owner, re.IGNORECASE):
+                        if re.search(rf'\b({self.my_name_pattern})\b', owner, re.IGNORECASE):
                             action_text = cells[action_col] if action_col >= 0 and len(cells) > action_col else ' '.join(cells)
                             if action_text:
-                                items.append((action_text, 'Steven'))
+                                items.append((action_text, MY_NAME))
             else:
                 in_table = False
                 owner_col = -1

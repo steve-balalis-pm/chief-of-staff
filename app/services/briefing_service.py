@@ -38,11 +38,11 @@ class BriefingService:
         """Generate a time-appropriate greeting."""
         hour = datetime.now().hour
         if hour < 12:
-            return "Good morning, Steven"
+            return "Good morning"
         elif hour < 17:
-            return "Good afternoon, Steven"
+            return "Good afternoon"
         else:
-            return "Good evening, Steven"
+            return "Good evening"
     
     def _get_tasks_data(self) -> Dict[str, Any]:
         """Get tasks from TASKS.md via the sync service."""

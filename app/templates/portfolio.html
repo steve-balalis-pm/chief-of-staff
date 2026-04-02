@@ -43,7 +43,7 @@
                             <div class="accomplishment-title">{{ item.title }}</div>
                             <div class="accomplishment-meta">
                                 {% if item.source_jira_key %}
-                                <a href="https://accoladeinc.atlassian.net/browse/{{ item.source_jira_key }}" target="_blank">
+                                <a href="#" onclick="window.open((window.JIRA_BASE_URL || 'https://your-org.atlassian.net') + '/browse/{{ item.source_jira_key }}', '_blank')" style="cursor:pointer;">
                                     {{ item.source_jira_key }}
                                 </a> •
                                 {% endif %}

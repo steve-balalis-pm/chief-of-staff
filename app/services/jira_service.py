@@ -7,7 +7,8 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 
 # Configuration
-JIRA_BASE_URL = "https://accoladeinc.atlassian.net"
+# Configure this for your Jira instance
+JIRA_BASE_URL = os.environ.get("JIRA_BASE_URL", "https://your-org.atlassian.net")
 JIRA_DATA_DIR = Path(__file__).parent.parent.parent / "jira_data"
 
 

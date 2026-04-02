@@ -17,7 +17,7 @@ _SEED_INITIATIVES = [
         "status": "In Progress",
         "target": "Q3 2026",
         "description": "Migrate outbound feeds from RedShift to Databricks",
-        "owner": "Janet (tech), Ellen (ops), Steven (TPM)",
+        "owner": "Tech Lead, Ops Lead, TPM",
         "sort_order": 0,
     },
     {
@@ -33,7 +33,7 @@ _SEED_INITIATIVES = [
         "status": "In Progress",
         "target": "Ongoing",
         "description": "Improve ticket management workflow with Jeff & Ellen",
-        "owner": "Steven",
+        "owner": "TPM",
         "sort_order": 2,
     },
     {
