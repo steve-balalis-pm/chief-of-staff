@@ -20,6 +20,9 @@ class Task(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
+    # Recurring task support
+    recurring = Column(String(20), nullable=True)  # "daily", "weekly", "monthly", or None
+
     # For syncing with TASKS.md
     md_line_hash = Column(String(64), nullable=True)  # Hash of original markdown line
     

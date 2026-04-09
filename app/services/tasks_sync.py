@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime, date, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.models.task import Task
 from app.models.accomplishment import Accomplishment
@@ -52,10 +53,15 @@ class TasksSyncService:
                     break
             
             # Check for subsection headers
+            matched_subsection = False
             for key, header in self.SUBSECTION_MAP.items():
                 if header in line:
                     current_subsection = key
+                    matched_subsection = True
                     break
+            # Unknown ### headers reset subsection so tasks don't inherit wrong priority
+            if line.startswith("### ") and not matched_subsection:
+                current_subsection = None
             
             # Parse task items
             if current_section and line.strip().startswith("- ["):
@@ -85,12 +91,19 @@ class TasksSyncService:
         
         # Clean content - remove strikethrough markers
         clean_content = re.sub(r'~~(.+?)~~', r'\1', content)
-        
-        # Determine priority based on section/subsection
-        priority = "medium"
-        if subsection == "high_priority" or "HIGH PRIORITY" in (subsection or ""):
+
+        # Extract recurring marker [daily], [weekly], [monthly]
+        recurring_match = re.search(r'\[(daily|weekly|monthly)\]', clean_content, re.IGNORECASE)
+        recurring = recurring_match.group(1).lower() if recurring_match else None
+        if recurring:
+            clean_content = re.sub(r'\s*\[(daily|weekly|monthly)\]\s*', ' ', clean_content, flags=re.IGNORECASE).strip()
+
+        # Determine priority based on subsection key
+        if subsection == "high_priority":
             priority = "high"
-        elif "MEDIUM" in (subsection or ""):
+        elif subsection == "personal_dev":
+            priority = "low"
+        else:
             priority = "medium"
         
         return {
@@ -104,6 +117,7 @@ class TasksSyncService:
             "zendesk_id": zendesk_id,
             "line_hash": hashlib.md5(line.encode()).hexdigest()[:16],
             "indent": len(indent),
+            "recurring": recurring,
         }
     
     def sync_from_md(self):
@@ -117,14 +131,16 @@ class TasksSyncService:
                 ).first()
                 
                 if existing:
-                    # Update existing task
-                    existing.done = task_data["done"]
-                    existing.content = task_data["content"]
+                    # DB is source of truth for content after first import — don't overwrite
                     existing.section = task_data["section"]
                     existing.subsection = task_data["subsection"]
                     existing.priority = task_data["priority"]
-                    if task_data["done"] and not existing.completed_at:
-                        existing.completed_at = datetime.now()
+                    existing.recurring = task_data.get("recurring")
+                    # Don't overwrite done/completed_at for recurring tasks — DB is source of truth
+                    if not existing.recurring:
+                        existing.done = task_data["done"]
+                        if task_data["done"] and not existing.completed_at:
+                            existing.completed_at = datetime.now()
                 else:
                     # Create new task
                     task = Task(
@@ -135,6 +151,7 @@ class TasksSyncService:
                         done=task_data["done"],
                         jira_link=task_data["jira_link"],
                         md_line_hash=task_data["line_hash"],
+                        recurring=task_data.get("recurring"),
                         completed_at=datetime.now() if task_data["done"] else None
                     )
                     self.db.add(task)
@@ -152,19 +169,72 @@ class TasksSyncService:
         TASKS_MD_PATH.write_text(content)
     
     def get_dashboard_data(self) -> dict:
-        """Get task data for dashboard view with database IDs."""
+        """Get task data for dashboard view. Syncs TASKS.md then merges with DB-only tasks."""
         self.sync_from_md()
-        return self._get_tasks_with_ids()
-    
+        return self._get_tasks_merged()
+
     def get_all_tasks(self) -> dict:
-        """Get all tasks grouped by section with database IDs."""
+        """Get all tasks grouped by section. Syncs TASKS.md then merges with DB-only tasks."""
         self.sync_from_md()
-        return self._get_tasks_with_ids()
+        return self._get_tasks_merged()
+
+    def _get_tasks_merged(self) -> dict:
+        """Return tasks from both TASKS.md (synced to DB) and DB-only tasks added via UI."""
+        # Start with TASKS.md-sourced tasks (enriched with DB IDs)
+        md_sections = self._get_tasks_with_ids()
+
+        # Track which DB task IDs are already represented
+        seen_ids = set()
+        for section_tasks in md_sections.values():
+            for t in section_tasks:
+                if t.get("id"):
+                    seen_ids.add(t["id"])
+
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())
+
+        # Add DB-only tasks (created via web UI, no md_line_hash)
+        db_only = self.db.query(Task).filter(
+            Task.md_line_hash == None
+        ).order_by(Task.created_at).all()
+
+        for db_task in db_only:
+            if db_task.id in seen_ids:
+                continue
+            # Build done status (handle recurring)
+            done = db_task.done
+            if db_task.recurring:
+                completed_date = db_task.completed_at.date() if db_task.completed_at else None
+                if db_task.recurring == "daily":
+                    done = completed_date == today
+                elif db_task.recurring in ("weekly", "monthly"):
+                    done = completed_date is not None and completed_date >= week_start
+
+            task_dict = {
+                "id": db_task.id,
+                "content": db_task.content,
+                "done": done,
+                "section": db_task.section,
+                "subsection": db_task.subsection,
+                "priority": db_task.priority,
+                "jira_link": db_task.jira_link,
+                "jira_key": None,
+                "recurring": db_task.recurring,
+                "line_hash": None,
+            }
+            section = db_task.section or "this_week"
+            md_sections.setdefault(section, [])
+            md_sections[section].append(task_dict)
+
+        return md_sections
     
     def _get_tasks_with_ids(self) -> dict:
         """Get tasks from MD, enriched with database IDs for persistence."""
         sections = self._parse_tasks_md()
         
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())
+
         # Enrich each task with its database ID
         for section_key, tasks in sections.items():
             for task in tasks:
@@ -174,8 +244,20 @@ class TasksSyncService:
                     ).first()
                     if db_task:
                         task["id"] = db_task.id
-                        task["done"] = db_task.done  # Use DB state as source of truth
-        
+                        task["recurring"] = db_task.recurring
+
+                        if db_task.recurring:
+                            # Recurring tasks reset based on their interval
+                            completed_date = db_task.completed_at.date() if db_task.completed_at else None
+                            if db_task.recurring == "daily":
+                                task["done"] = completed_date == today
+                            elif db_task.recurring in ("weekly", "monthly"):
+                                task["done"] = completed_date is not None and completed_date >= week_start
+                            else:
+                                task["done"] = db_task.done
+                        else:
+                            task["done"] = db_task.done  # Use DB state as source of truth
+
         return sections
     
     def toggle_task(self, task_id: int) -> Optional[dict]:
@@ -191,10 +273,11 @@ class TasksSyncService:
             task.completed_at = None
         
         self.db.commit()
-        
-        # Update TASKS.md
-        self._update_task_in_md(task)
-        
+
+        # Recurring tasks stay as "- [ ]" in TASKS.md always — only DB tracks completion
+        if not task.recurring:
+            self._update_task_in_md(task)
+
         return {"id": task.id, "done": task.done, "content": task.content}
     
     def toggle_task_by_hash(self, line_hash: str) -> Optional[dict]:
@@ -275,11 +358,65 @@ class TasksSyncService:
         if not task:
             return False
         
+        old_section = task.section
         task.section = target_section
         self.db.commit()
         
-        # Note: Full markdown rewrite for move is complex, skip for now
+        # Update TASKS.md - remove from old section, add to new section
+        self._move_task_in_md(task, old_section, target_section)
         return True
+    
+    def _move_task_in_md(self, task: Task, old_section: str, new_section: str):
+        """Move a task line from one section to another in TASKS.md."""
+        if not TASKS_MD_PATH.exists() or not task.md_line_hash:
+            return
+        
+        content = TASKS_MD_PATH.read_text()
+        lines = content.splitlines()
+        
+        # Find and remove the task line
+        task_line = None
+        task_index = None
+        for i, line in enumerate(lines):
+            if hashlib.md5(line.encode()).hexdigest()[:16] == task.md_line_hash:
+                task_line = line.strip()
+                task_index = i
+                break
+        
+        if task_line is None:
+            return
+        
+        # Remove the old line
+        lines.pop(task_index)
+        
+        # Find the new section and insert
+        new_section_header = self.SECTION_MAP.get(new_section, "## 🟡 This Week")
+        insert_index = None
+        
+        for i, line in enumerate(lines):
+            # Match section header (handle variations)
+            header_prefix = new_section_header.split("—")[0].strip().split("/")[0].strip()
+            if header_prefix in line and line.startswith("##"):
+                # Insert after the header, before the next section or separator
+                for j in range(i + 1, len(lines)):
+                    # Skip subsection headers (###) and blank lines to find first task or next section
+                    if lines[j].startswith("## ") or lines[j].strip() == "---":
+                        insert_index = j
+                        break
+                    elif lines[j].strip().startswith("- ["):
+                        # Insert before first task in section
+                        insert_index = j
+                        break
+                if insert_index is None:
+                    insert_index = len(lines)
+                break
+        
+        if insert_index:
+            lines.insert(insert_index, task_line)
+            TASKS_MD_PATH.write_text("\n".join(lines))
+            # Update the line hash since position changed
+            task.md_line_hash = hashlib.md5(task_line.encode()).hexdigest()[:16]
+            self.db.commit()
     
     def delete_task(self, task_id: int) -> bool:
         """Delete a task."""

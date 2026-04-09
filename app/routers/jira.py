@@ -20,8 +20,7 @@ async def jira_dashboard(request: Request):
     # Get field completeness summary
     field_summary = field_checker.get_actionable_summary()
     
-    return templates.TemplateResponse("jira.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "jira.html", {
         "active": "jira",
         "data": dashboard_data,
         "field_summary": field_summary,
@@ -38,8 +37,7 @@ async def refresh_data(request: Request):
     dashboard_data = jira_service.get_all_dashboard_data()
     field_summary = field_checker.get_actionable_summary()
     
-    return templates.TemplateResponse("partials/jira_content.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/jira_content.html", {
         "data": dashboard_data,
         "field_summary": field_summary,
         "is_live": dashboard_data.get("is_live", False),
@@ -64,8 +62,7 @@ async def get_ticket_category(request: Request, category: str):
     
     getter = category_map.get(category)
     if not getter:
-        return templates.TemplateResponse("partials/ticket_list.html", {
-            "request": request,
+        return templates.TemplateResponse(request, "partials/ticket_list.html", {
             "tickets": [],
             "category": category,
             "error": "Unknown category"
@@ -73,8 +70,7 @@ async def get_ticket_category(request: Request, category: str):
     
     tickets = getter()
     
-    return templates.TemplateResponse("partials/ticket_list.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/ticket_list.html", {
         "tickets": tickets,
         "category": category,
     })
@@ -88,7 +84,6 @@ async def field_check(request: Request):
     
     summary = field_checker.get_actionable_summary()
     
-    return templates.TemplateResponse("partials/field_check.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/field_check.html", {
         "summary": summary,
     })

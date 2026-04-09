@@ -3,9 +3,12 @@
 {% block title %}Dashboard - Chief of Staff Hub{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1 class="page-title">Dashboard</h1>
-    <p class="page-subtitle">Overview of tasks, progress, and priorities</p>
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Overview of tasks, progress, and priorities</p>
+    </div>
+    <button class="btn btn-secondary" onclick="location.reload()">↻ Refresh</button>
 </div>
 
 <div class="stats-bar">
@@ -86,8 +89,8 @@
         <div class="card-body task-list-sortable">
             {% if tasks.active_today %}
                 {% for task in tasks.active_today[:10] %}
-                <div class="task-item {% if task.done %}done{% endif %}" id="task-{{ task.id or task.line_hash }}">
-                    <input type="checkbox" class="task-checkbox" 
+                <div class="task-item {% if task.done %}done{% endif %}" id="dash-today-{{ task.id or task.line_hash }}">
+                    <input type="checkbox" class="task-checkbox"
                            {% if task.done %}checked{% endif %}
                            {% if task.id %}
                            hx-post="/tasks/toggle/{{ task.id }}"
@@ -101,6 +104,12 @@
                         <div class="task-meta">
                             {% if task.jira_key %}
                             <span class="task-tag jira">{{ task.jira_key }}</span>
+                            {% if jira_live and task.jira_key not in open_jira_keys %}
+                            <span class="task-tag resolved" title="This ticket appears closed in Jira — you can remove this task">Resolved in Jira?</span>
+                            {% endif %}
+                            {% endif %}
+                            {% if task.recurring %}
+                            <span class="task-tag recurring" title="Resets {{ task.recurring }}">↻ {{ task.recurring }}</span>
                             {% endif %}
                             {% if task.priority == 'high' %}
                             <span class="task-tag priority-high">High</span>
@@ -109,6 +118,9 @@
                     </div>
                 </div>
                 {% endfor %}
+                {% if tasks.active_today | length > 10 %}
+                <p class="text-muted text-sm mt-4">+ {{ tasks.active_today | length - 10 }} more — <a href="/tasks">view all</a></p>
+                {% endif %}
             {% else %}
                 <div class="empty-state">
                     <div class="empty-state-icon">✅</div>
@@ -178,7 +190,10 @@
                 </div>
                 {% endfor %}
             {% else %}
-                <p class="text-muted">No ongoing tasks</p>
+                <div class="empty-state">
+                    <div class="empty-state-icon">🟢</div>
+                    <p>No ongoing background tasks</p>
+                </div>
             {% endif %}
         </div>
     </div>
@@ -200,7 +215,10 @@
                 <p class="text-muted text-sm mt-4">+ {{ tasks.completed | length - 5 }} more completed</p>
                 {% endif %}
             {% else %}
-                <p class="text-muted">No completed tasks yet</p>
+                <div class="empty-state">
+                    <div class="empty-state-icon">⏳</div>
+                    <p>Nothing completed yet this week</p>
+                </div>
             {% endif %}
         </div>
     </div>

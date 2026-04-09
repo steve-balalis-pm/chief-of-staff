@@ -20,8 +20,7 @@ async def daily_briefing(request: Request, db: Session = Depends(get_db)):
     
     briefing = briefing_service.generate_briefing()
     
-    return templates.TemplateResponse("briefing.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "briefing.html", {
         "active": "briefing",
         "briefing": briefing,
         "jira_live": jira_service.is_configured,
@@ -36,8 +35,7 @@ async def refresh_briefing(request: Request, db: Session = Depends(get_db)):
     
     briefing = briefing_service.generate_briefing()
     
-    return templates.TemplateResponse("partials/briefing_content.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/briefing_content.html", {
         "briefing": briefing,
         "jira_live": jira_service.is_configured,
     })

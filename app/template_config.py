@@ -1,10 +1,21 @@
 """Template configuration with custom filters."""
 import re
 from pathlib import Path
+from datetime import datetime
 from jinja2 import Environment, FileSystemLoader
 from fastapi.templating import Jinja2Templates
 
 BASE_DIR = Path(__file__).parent
+JIRA_DATA_DIR = BASE_DIR.parent / "jira_data"
+
+
+def get_jira_freshness():
+    """Get the timestamp of when the Jira JSON data was last refreshed."""
+    filepath = JIRA_DATA_DIR / "jupiter_open.json"
+    if filepath.exists():
+        mtime = datetime.fromtimestamp(filepath.stat().st_mtime)
+        return mtime.strftime("%Y-%m-%d %H:%M")
+    return "No data"
 
 def render_markdown(text):
     """Convert basic markdown to HTML."""
@@ -35,6 +46,7 @@ def setup_templates():
     templates = Jinja2Templates(directory=BASE_DIR / "templates")
     templates.env.filters['markdown'] = render_markdown
     templates.env.autoescape = False  # Allow HTML from markdown filter
+    templates.env.globals['jira_freshness'] = get_jira_freshness
     return templates
 
 # Shared templates instance

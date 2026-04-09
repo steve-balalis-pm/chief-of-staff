@@ -21,8 +21,7 @@ async def tasks_view(request: Request, db: Session = Depends(get_db)):
     sync_service = TasksSyncService(db)
     tasks_data = sync_service.get_all_tasks()
     
-    return templates.TemplateResponse("tasks.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "tasks.html", {
         "sections": tasks_data
     })
 
@@ -53,14 +52,24 @@ async def add_task(
     content: str = Form(...),
     section: str = Form("this_week"),
     priority: str = Form("medium"),
+    recurring: str = Form(""),
     db: Session = Depends(get_db)
 ):
-    """Add a new task - htmx endpoint."""
-    from app.services.tasks_sync import TasksSyncService
-    
-    sync_service = TasksSyncService(db)
-    task = sync_service.add_task(content, section, priority)
-    return {"id": task.get("id"), "content": content, "section": section}
+    """Add a new task directly to DB (no TASKS.md write). Returns HX-Refresh."""
+    from fastapi.responses import Response
+    from app.models.task import Task
+
+    task = Task(
+        content=content,
+        section=section,
+        priority=priority,
+        recurring=recurring or None,
+        done=False,
+    )
+    db.add(task)
+    db.commit()
+    logger.info("Task added via UI: id=%s section=%s recurring=%s", task.id, section, recurring or None)
+    return Response(content="", headers={"HX-Refresh": "true"})
 
 @router.post("/move/{task_id}")
 async def move_task(
@@ -69,13 +78,38 @@ async def move_task(
     db: Session = Depends(get_db)
 ):
     """Move task to different section - htmx endpoint."""
+    from fastapi.responses import Response
     from app.services.tasks_sync import TasksSyncService
     
     sync_service = TasksSyncService(db)
     success = sync_service.move_task(task_id, target_section)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
-    return {"id": task_id, "section": target_section}
+    
+    # Return HX-Refresh header to reload the page
+    return Response(
+        content="",
+        headers={"HX-Refresh": "true"}
+    )
+
+@router.post("/{task_id}/edit")
+async def edit_task_content(
+    task_id: int,
+    content: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Update a task's content. DB is authoritative — TASKS.md is not touched."""
+    from fastapi.responses import Response
+    from app.models.task import Task
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.content = content.strip()
+    db.commit()
+    logger.info("Task content edited: id=%s", task_id)
+    return Response(content="", headers={"HX-Refresh": "true"})
+
 
 @router.delete("/{task_id}", response_class=HTMLResponse)
 async def delete_task(task_id: int, db: Session = Depends(get_db)):

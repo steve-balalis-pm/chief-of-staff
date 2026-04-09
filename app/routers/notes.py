@@ -20,8 +20,7 @@ async def notes_inbox(request: Request, db: Session = Depends(get_db)):
         MeetingNote.archived == False
     ).order_by(MeetingNote.created_at.desc()).all()
     
-    return templates.TemplateResponse("notes.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "notes.html", {
         "notes": notes
     })
 

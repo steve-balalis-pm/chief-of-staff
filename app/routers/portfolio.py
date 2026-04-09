@@ -1,10 +1,11 @@
 """Portfolio router - accomplishments view for manager 1:1s."""
+import json
 import logging
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
-from typing import Optional
+from typing import Optional, List
 
 from app.database import get_db
 from app.models.accomplishment import Accomplishment
@@ -38,8 +39,7 @@ async def portfolio_view(
     accomplishments = portfolio_service.get_by_week(weeks=weeks)
     initiatives = portfolio_service.get_initiatives()
 
-    return templates.TemplateResponse("portfolio.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "portfolio.html", {
         "weeks_data": accomplishments,
         "initiatives": initiatives,
         "weeks_shown": weeks,
@@ -74,56 +74,93 @@ async def update_impact(
 
 @router.post("/initiatives")
 async def add_initiative(
+    request: Request,
     name: str = Form(...),
     status: str = Form("In Progress"),
     target: str = Form(""),
     description: str = Form(""),
+    next_steps: str = Form(""),
     owner: str = Form(""),
+    confluence_link: str = Form(""),
     db: Session = Depends(get_db),
 ):
     """Add a new initiative."""
+    # Parse document links from form (doc_label[] and doc_url[] arrays)
+    form_data = await request.form()
+    doc_labels = form_data.getlist("doc_label[]")
+    doc_urls = form_data.getlist("doc_url[]")
+    document_links = []
+    for label, url in zip(doc_labels, doc_urls):
+        if url and url.strip():
+            document_links.append({
+                "label": label.strip() if label and label.strip() else "Link",
+                "url": url.strip()
+            })
+    
     max_order = db.query(Initiative).count()
     initiative = Initiative(
         name=name,
         status=status,
         target=target,
         description=description,
+        next_steps=next_steps,
         owner=owner,
+        confluence_link=confluence_link or None,
         sort_order=max_order,
     )
+    initiative.set_document_links(document_links)
     db.add(initiative)
     db.commit()
     logger.info("Initiative added: %s", name)
-    return RedirectResponse(url="/portfolio", status_code=303)
+    return RedirectResponse(url="/tracker", status_code=303)
 
 
 @router.post("/initiatives/{initiative_id}/update")
 async def update_initiative(
+    request: Request,
     initiative_id: int,
     name: str = Form(...),
     status: str = Form("In Progress"),
     target: str = Form(""),
     description: str = Form(""),
+    next_steps: str = Form(""),
     owner: str = Form(""),
+    confluence_link: str = Form(""),
     db: Session = Depends(get_db),
 ):
     """Update an existing initiative."""
     initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
     if not initiative:
-        return RedirectResponse(url="/portfolio", status_code=303)
+        return RedirectResponse(url="/tracker", status_code=303)
+    
+    # Parse document links from form
+    form_data = await request.form()
+    doc_labels = form_data.getlist("doc_label[]")
+    doc_urls = form_data.getlist("doc_url[]")
+    document_links = []
+    for label, url in zip(doc_labels, doc_urls):
+        if url and url.strip():
+            document_links.append({
+                "label": label.strip() if label and label.strip() else "Link",
+                "url": url.strip()
+            })
+    
     initiative.name = name
     initiative.status = status
     initiative.target = target
     initiative.description = description
+    initiative.next_steps = next_steps
     initiative.owner = owner
+    initiative.confluence_link = confluence_link or None
+    initiative.set_document_links(document_links)
     db.commit()
     logger.info("Initiative updated: id=%s name=%s", initiative_id, name)
-    return RedirectResponse(url="/portfolio", status_code=303)
+    return RedirectResponse(url="/tracker", status_code=303)
 
 
 @router.delete("/initiatives/{initiative_id}", response_class=HTMLResponse)
 async def delete_initiative(initiative_id: int, db: Session = Depends(get_db)):
-    """Delete an initiative. Returns empty string so HTMX removes the card."""
+    """Delete an initiative. Returns empty string so HTMX removes the row."""
     initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
     if not initiative:
         return HTMLResponse("")
@@ -131,3 +168,5 @@ async def delete_initiative(initiative_id: int, db: Session = Depends(get_db)):
     db.commit()
     logger.info("Initiative deleted: id=%s", initiative_id)
     return HTMLResponse("")
+
+

@@ -44,6 +44,24 @@ _SEED_INITIATIVES = [
         "owner": "Robert/Alexis (MB), Cara (Jupiter)",
         "sort_order": 3,
     },
+    {
+        "name": "GitHub Data Governance",
+        "status": "In Progress",
+        "target": "Q2 2026",
+        "description": "Scripting library governance for GitHub repos; governance doc shared for review",
+        "next_steps": "Review Jeffrey's Claude-generated governance doc; Steven adding outbound requirements",
+        "owner": "Jeffrey Mullen, Steven Balalis",
+        "sort_order": 4,
+    },
+    {
+        "name": "Databricks Data Governance",
+        "status": "Planning",
+        "target": "TBD",
+        "description": "Data governance standards for Databricks platform",
+        "next_steps": "Not yet kicked off — pending GitHub governance completion",
+        "owner": "TBD",
+        "sort_order": 5,
+    },
 ]
 
 
@@ -114,7 +132,10 @@ class PortfolioService:
                 "status": r.status,
                 "target": r.target,
                 "description": r.description,
+                "next_steps": r.next_steps,
                 "owner": r.owner,
+                "confluence_link": r.confluence_link,
+                "document_links": r.get_document_links(),
             }
             for r in rows
         ]

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Workstream Tracker - Chief of Staff Hub{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h1 class="page-title">Workstream Tracker</h1>
+        <p class="page-subtitle">Program status for bi-weekly manager updates</p>
+    </div>
+    <div class="flex gap-2">
+        <button class="btn btn-secondary" onclick="location.reload()">↻ Refresh</button>
+        <a href="/tracker/share" target="_blank" class="btn btn-primary">📤 Share View</a>
+        <button class="btn btn-secondary" onclick="toggleAddForm()">+ Add Workstream</button>
+    </div>
+</div>
+
+{# Add workstream form #}
+<div class="card mb-4" id="add-workstream-form" style="display: none;">
+    <div class="card-header blue">Add Workstream</div>
+    <div class="card-body">
+        <form action="/portfolio/initiatives" method="post">
+            <div class="grid grid-2" style="gap: 12px;">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Workstream Name</label>
+                    <input type="text" name="name" class="form-input" required placeholder="e.g. Databricks Migration">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="In Progress" selected>🟡 In Progress</option>
+                        <option value="On Track">🟢 On Track</option>
+                        <option value="At Risk">🔴 At Risk</option>
+                        <option value="Planning">🔵 Planning</option>
+                        <option value="On Hold">⏸ On Hold</option>
+                        <option value="Complete">✅ Complete</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Target / Timeline</label>
+                    <input type="text" name="target" class="form-input" placeholder="e.g. Q3 2026">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Owner(s)</label>
+                    <input type="text" name="owner" class="form-input" placeholder="e.g. Janet + Ellen">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Description <span class="text-muted" style="font-weight: normal;">(what / why)</span></label>
+                    <input type="text" name="description" class="form-input" placeholder="Brief summary of the workstream">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Next Steps <span class="text-muted" style="font-weight: normal;">(what's happening now)</span></label>
+                    <textarea name="next_steps" class="form-input" rows="2" placeholder="e.g. Building Wave 1 feeds; Janet confirming table availability"></textarea>
+                </div>
+                                <div class="form-group" style="grid-column: 1 / -1;">
+                                    <label class="form-label">Document Links <span class="text-muted" style="font-weight: normal;">(optional)</span></label>
+                                    <div id="add-doc-links-container" class="doc-links-container">
+                                        <div class="doc-link-row">
+                                            <input type="text" name="doc_label[]" class="form-input" placeholder="Label (e.g. Confluence, SharePoint)" style="width: 35%;">
+                                            <input type="url" name="doc_url[]" class="form-input" placeholder="https://..." style="width: 55%;">
+                                            <button type="button" class="btn-remove-link" onclick="removeDocLink(this)" title="Remove">×</button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="addDocLink('add-doc-links-container')">+ Add Link</button>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-4">
+                                <button type="submit" class="btn btn-primary">Save</button>
+                                <button type="button" class="btn btn-secondary" onclick="toggleAddForm()">Cancel</button>
+                            </div>
+                        </form>
+    </div>
+</div>
+
+{# Tracker table #}
+<div class="card">
+    <div class="card-header purple">📊 Active Workstreams</div>
+    <div class="card-body" style="padding: 0;">
+        {% if initiatives %}
+        <table class="tracker-table">
+            <thead>
+                <tr>
+                    <th style="width: 22%;">Workstream</th>
+                    <th style="width: 12%;">Status</th>
+                    <th style="width: 33%;">Next Steps</th>
+                    <th style="width: 15%;">Owner(s)</th>
+                    <th style="width: 10%;">Target</th>
+                    <th style="width: 5%;">Docs</th>
+                    <th style="width: 3%;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for initiative in initiatives %}
+                <tr class="tracker-row" id="tracker-row-{{ initiative.id }}">
+                    {# Display row #}
+                    <td id="tracker-display-{{ initiative.id }}">
+                        <div class="tracker-name">{{ initiative.name }}</div>
+                        {% if initiative.description %}
+                        <div class="tracker-desc">{{ initiative.description }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-pill status-{{ initiative.status | lower | replace(' ', '-') }}">
+                            {% if initiative.status == 'On Track' %}🟢
+                            {% elif initiative.status in ('In Progress', 'Planning') %}🟡
+                            {% elif initiative.status == 'At Risk' %}🔴
+                            {% elif initiative.status == 'On Hold' %}⏸
+                            {% elif initiative.status == 'Complete' %}✅
+                            {% else %}🟡{% endif %}
+                            {{ initiative.status }}
+                        </span>
+                    </td>
+                    <td class="tracker-next-steps">{{ initiative.next_steps or '—' }}</td>
+                    <td class="text-sm">{{ initiative.owner or '—' }}</td>
+                    <td class="text-sm text-muted">{{ initiative.target or '—' }}</td>
+                    <td class="text-center doc-links-cell">
+                        {% if initiative.document_links %}
+                            {% for link in initiative.document_links %}
+                            <a href="{{ link.url }}" target="_blank" title="{{ link.label }}" class="doc-link-icon">
+                                {% if 'confluence' in link.label|lower or 'atlassian' in link.url|lower %}📄
+                                {% elif 'sharepoint' in link.label|lower or 'sharepoint' in link.url|lower %}📁
+                                {% elif '.doc' in link.url|lower or 'word' in link.label|lower %}📝
+                                {% elif '.xls' in link.url|lower or 'excel' in link.label|lower %}📊
+                                {% elif 'jira' in link.url|lower %}🎫
+                                {% else %}🔗{% endif %}
+                            </a>
+                            {% endfor %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <div class="flex gap-1">
+                            <button class="btn-initiative-edit" onclick="toggleTrackerEdit({{ initiative.id }})">Edit</button>
+                            <button class="btn-delete-task" onclick="handleInitiativeDelete(this, {{ initiative.id }})" title="Delete">×</button>
+                        </div>
+                    </td>
+                </tr>
+                {# Inline edit row (hidden) #}
+                <tr id="tracker-edit-{{ initiative.id }}" style="display: none;" class="tracker-edit-row">
+                    <td colspan="7">
+                        <form action="/portfolio/initiatives/{{ initiative.id }}/update" method="post" class="tracker-edit-form">
+                            <div class="grid grid-2" style="gap: 8px;">
+                                <div class="form-group" style="grid-column: 1 / -1;">
+                                    <label class="form-label" style="font-size: 0.75rem;">Workstream Name</label>
+                                    <input type="text" name="name" class="form-input" value="{{ initiative.name }}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" style="font-size: 0.75rem;">Status</label>
+                                    <select name="status" class="form-select">
+                                        <option value="In Progress" {% if initiative.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                        <option value="On Track" {% if initiative.status == 'On Track' %}selected{% endif %}>On Track</option>
+                                        <option value="At Risk" {% if initiative.status == 'At Risk' %}selected{% endif %}>At Risk</option>
+                                        <option value="Planning" {% if initiative.status == 'Planning' %}selected{% endif %}>Planning</option>
+                                        <option value="On Hold" {% if initiative.status == 'On Hold' %}selected{% endif %}>On Hold</option>
+                                        <option value="Complete" {% if initiative.status == 'Complete' %}selected{% endif %}>Complete</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" style="font-size: 0.75rem;">Target</label>
+                                    <input type="text" name="target" class="form-input" value="{{ initiative.target or '' }}">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" style="font-size: 0.75rem;">Owner(s)</label>
+                                    <input type="text" name="owner" class="form-input" value="{{ initiative.owner or '' }}">
+                                </div>
+                                <div class="form-group" style="grid-column: 1 / -1;">
+                                    <label class="form-label" style="font-size: 0.75rem;">Description</label>
+                                    <input type="text" name="description" class="form-input" value="{{ initiative.description or '' }}">
+                                </div>
+                                <div class="form-group" style="grid-column: 1 / -1;">
+                                    <label class="form-label" style="font-size: 0.75rem;">Next Steps</label>
+                                    <textarea name="next_steps" class="form-input" rows="2">{{ initiative.next_steps or '' }}</textarea>
+                                </div>
+                                <div class="form-group" style="grid-column: 1 / -1;">
+                                    <label class="form-label" style="font-size: 0.75rem;">Document Links <span class="text-muted">(optional)</span></label>
+                                    <div id="edit-doc-links-{{ initiative.id }}" class="doc-links-container">
+                                        {% if initiative.document_links %}
+                                            {% for link in initiative.document_links %}
+                                        <div class="doc-link-row">
+                                            <input type="text" name="doc_label[]" class="form-input" placeholder="Label" value="{{ link.label }}" style="width: 35%;">
+                                            <input type="url" name="doc_url[]" class="form-input" placeholder="https://..." value="{{ link.url }}" style="width: 55%;">
+                                            <button type="button" class="btn-remove-link" onclick="removeDocLink(this)" title="Remove">×</button>
+                                        </div>
+                                            {% endfor %}
+                                        {% else %}
+                                        <div class="doc-link-row">
+                                            <input type="text" name="doc_label[]" class="form-input" placeholder="Label (e.g. Confluence)" style="width: 35%;">
+                                            <input type="url" name="doc_url[]" class="form-input" placeholder="https://..." style="width: 55%;">
+                                            <button type="button" class="btn-remove-link" onclick="removeDocLink(this)" title="Remove">×</button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="addDocLink('edit-doc-links-{{ initiative.id }}')">+ Add Link</button>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-4">
+                                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleTrackerEdit({{ initiative.id }})">Cancel</button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state" style="padding: 48px;">
+            <div class="empty-state-icon">📋</div>
+            <p>No workstreams yet — add one above to start tracking</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleAddForm() {
+    var form = document.getElementById('add-workstream-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleTrackerEdit(id) {
+    var editRow = document.getElementById('tracker-edit-' + id);
+    var displayRow = document.getElementById('tracker-row-' + id);
+    if (editRow.style.display === 'none' || editRow.style.display === '') {
+        editRow.style.display = 'table-row';
+        displayRow.style.display = 'none';
+    } else {
+        editRow.style.display = 'none';
+        displayRow.style.display = 'table-row';
+    }
+}
+
+function addDocLink(containerId) {
+    var container = document.getElementById(containerId);
+    var row = document.createElement('div');
+    row.className = 'doc-link-row';
+    row.innerHTML = '<input type="text" name="doc_label[]" class="form-input" placeholder="Label (e.g. Confluence, SharePoint)" style="width: 35%;">' +
+                    '<input type="url" name="doc_url[]" class="form-input" placeholder="https://..." style="width: 55%;">' +
+                    '<button type="button" class="btn-remove-link" onclick="removeDocLink(this)" title="Remove">×</button>';
+    container.appendChild(row);
+}
+
+function removeDocLink(btn) {
+    var row = btn.parentElement;
+    var container = row.parentElement;
+    // Keep at least one row
+    if (container.querySelectorAll('.doc-link-row').length > 1) {
+        row.remove();
+    } else {
+        // Clear the inputs instead of removing
+        row.querySelectorAll('input').forEach(function(input) { input.value = ''; });
+    }
+}
+
+// Override delete for tracker table rows
+function handleInitiativeDelete(btn, initiativeId) {
+    if (btn.classList.contains('confirming')) {
+        fetch('/portfolio/initiatives/' + initiativeId, {
+            method: 'DELETE',
+        }).then(function() {
+            // Remove both the display row and edit row
+            var displayRow = document.getElementById('tracker-row-' + initiativeId);
+            var editRow = document.getElementById('tracker-edit-' + initiativeId);
+            if (displayRow) displayRow.remove();
+            if (editRow) editRow.remove();
+        });
+    } else {
+        btn.classList.add('confirming');
+        btn.textContent = '?';
+        btn.title = 'Click again to confirm delete';
+        setTimeout(function () {
+            if (btn.classList.contains('confirming')) {
+                btn.classList.remove('confirming');
+                btn.textContent = '×';
+                btn.title = 'Delete';
+            }
+        }, 3000);
+    }
+}
+</script>
+{% endblock %}

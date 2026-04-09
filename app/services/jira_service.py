@@ -153,17 +153,24 @@ class JiraService:
         extract_content(adf)
         return ' '.join(text_parts)
     
+    def _get_issues_from_data(self, data: Dict) -> List[Dict]:
+        """Extract issues array from JSON data, handling nested structure."""
+        issues = data.get('issues', [])
+        if isinstance(issues, dict):
+            return issues.get('nodes', [])
+        return issues
+    
     def _get_all_tickets(self, project: str = None) -> List[JiraTicket]:
         """Load all tickets from JSON files, optionally filtered by project."""
         tickets = []
         
         if project == "JUPITER" or project is None:
             data = self._load_json("jupiter_open.json")
-            tickets.extend([self._parse_ticket(issue) for issue in data.get('issues', [])])
+            tickets.extend([self._parse_ticket(issue) for issue in self._get_issues_from_data(data)])
         
         if project == "DIT" or project is None:
             data = self._load_json("dit_open.json")
-            tickets.extend([self._parse_ticket(issue) for issue in data.get('issues', [])])
+            tickets.extend([self._parse_ticket(issue) for issue in self._get_issues_from_data(data)])
         
         return tickets
     
@@ -195,7 +202,7 @@ class JiraService:
     def get_recently_updated(self, project: str = "JUPITER", days: int = 2) -> List[JiraTicket]:
         """Get tickets updated in the last N days."""
         data = self._load_json("recently_updated.json")
-        tickets = [self._parse_ticket(issue) for issue in data.get('issues', [])]
+        tickets = [self._parse_ticket(issue) for issue in self._get_issues_from_data(data)]
         if project:
             tickets = [t for t in tickets if t.key.startswith(project)]
         return tickets
@@ -203,7 +210,7 @@ class JiraService:
     def get_stale_tickets(self, project: str = "JUPITER", days: int = 5) -> List[JiraTicket]:
         """Get tickets not updated in N+ days."""
         data = self._load_json("stale.json")
-        tickets = [self._parse_ticket(issue) for issue in data.get('issues', [])]
+        tickets = [self._parse_ticket(issue) for issue in self._get_issues_from_data(data)]
         if project:
             tickets = [t for t in tickets if t.key.startswith(project)]
         return tickets
@@ -211,7 +218,7 @@ class JiraService:
     def get_upcoming_deadlines(self, project: str = "JUPITER", days: int = 7) -> List[JiraTicket]:
         """Get tickets with upcoming due dates."""
         data = self._load_json("time_sensitive.json")
-        tickets = [self._parse_ticket(issue) for issue in data.get('issues', [])]
+        tickets = [self._parse_ticket(issue) for issue in self._get_issues_from_data(data)]
         if project:
             tickets = [t for t in tickets if t.key.startswith(project)]
         return [t for t in tickets if t.due_date and not t.is_overdue]
@@ -226,6 +233,21 @@ class JiraService:
         tickets = self._get_all_tickets(project)
         return [t for t in tickets if "TPE" in [l.upper() for l in t.labels]]
     
+    def get_open_ticket_keys(self) -> set:
+        """Return the set of all open ticket keys across JUPITER and DIT.
+
+        Used to detect when a task's linked Jira ticket has been resolved:
+        if a key is NOT in this set, the ticket is likely closed.
+        """
+        keys = set()
+        for filename in ("jupiter_open.json", "dit_open.json"):
+            data = self._load_json(filename)
+            for issue in self._get_issues_from_data(data):
+                key = issue.get("key", "")
+                if key:
+                    keys.add(key)
+        return keys
+
     def get_all_dashboard_data(self) -> Dict[str, Any]:
         """Get all data needed for the Jira dashboard."""
         return {

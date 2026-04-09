@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.database import init_db
-from app.routers import dashboard, tasks, portfolio, notes, reference, jira, briefing
+from app.routers import dashboard, tasks, portfolio, tracker, notes, reference, jira, briefing
 
 load_dotenv()
 
@@ -45,6 +45,7 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 app.include_router(dashboard.router)
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 app.include_router(portfolio.router, prefix="/portfolio", tags=["portfolio"])
+app.include_router(tracker.router, prefix="/tracker", tags=["tracker"])
 app.include_router(notes.router, prefix="/notes", tags=["notes"])
 app.include_router(reference.router, prefix="/reference", tags=["reference"])
 app.include_router(jira.router)

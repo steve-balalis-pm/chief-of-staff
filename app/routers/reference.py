@@ -23,8 +23,7 @@ async def reference_view(request: Request, db: Session = Depends(get_db)):
     confluence = ConfluenceService()
     confluence_data = confluence.get_pages()
 
-    return templates.TemplateResponse("reference.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "reference.html", {
         "teams": context.get("teams", {}),
         "tools": context.get("tools", []),
         "goals": context.get("goals", {}),

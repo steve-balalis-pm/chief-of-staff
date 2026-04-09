@@ -14,6 +14,10 @@
         <div class="nav-brand">
             <span class="brand-icon">📋</span>
             <span class="brand-text">Chief of Staff Hub</span>
+            <span class="data-freshness" title="Jira data last refreshed">
+                <span class="freshness-icon">🔄</span>
+                <span class="freshness-time">{{ jira_freshness() }}</span>
+            </span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link {% if active == 'dashboard' %}active{% endif %}">Dashboard</a>
@@ -21,6 +25,7 @@
             <a href="/tasks" class="nav-link {% if active == 'tasks' %}active{% endif %}">Tasks</a>
             <a href="/jira" class="nav-link {% if active == 'jira' %}active{% endif %}">Jira</a>
             <a href="/portfolio" class="nav-link {% if active == 'portfolio' %}active{% endif %}">Portfolio</a>
+            <a href="/tracker" class="nav-link {% if active == 'tracker' %}active{% endif %}">Tracker</a>
             <a href="/notes" class="nav-link {% if active == 'notes' %}active{% endif %}">Notes</a>
             <a href="/reference" class="nav-link {% if active == 'reference' %}active{% endif %}">Reference</a>
         </div>
