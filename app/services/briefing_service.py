@@ -256,8 +256,6 @@ class BriefingService:
         # Today's tasks
         if open_today and len(open_today) <= 3:
             recommendations.append("Focus day: you have a manageable task list — aim to complete all")
-        elif open_today and len(open_today) > 5:
-            recommendations.append("Heavy day: prioritize ruthlessly and consider deferring non-critical items")
         
         # Stale tickets
         if stale and len(stale) >= 3:

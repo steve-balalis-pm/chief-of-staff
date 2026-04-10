@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  chief-of-staff:
+    build: .
+    container_name: chief-of-staff-hub
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist SQLite database and logs
+      - ./data:/app/data
+      - ./logs:/app/logs
+      # Mount jira_data for dashboard
+      - ./jira_data:/app/jira_data
+    environment:
+      - DATABASE_URL=sqlite:///./data/chief_of_staff.db
+    restart: unless-stopped

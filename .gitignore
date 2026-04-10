@@ -9,6 +9,9 @@ meeting_notes/
 morning-brief.html
 tasks.html
 
+# SQLite databases
+*.db
+
 # Python
 .venv/
 venv/

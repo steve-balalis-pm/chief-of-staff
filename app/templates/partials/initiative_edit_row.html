@@ -1,0 +1,65 @@
+{# Inline edit row - expects 'initiative' variable in context #}
+<tr id="tracker-edit-{{ initiative.id }}" style="display: none;" class="tracker-edit-row">
+    <td colspan="7">
+        <form action="/portfolio/initiatives/{{ initiative.id }}/update" method="post" class="tracker-edit-form">
+            <div class="grid grid-2" style="gap: 8px;">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label" style="font-size: 0.75rem;">Workstream Name</label>
+                    <input type="text" name="name" class="form-input" value="{{ initiative.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.75rem;">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="In Progress" {% if initiative.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="On Track" {% if initiative.status == 'On Track' %}selected{% endif %}>On Track</option>
+                        <option value="At Risk" {% if initiative.status == 'At Risk' %}selected{% endif %}>At Risk</option>
+                        <option value="Planning" {% if initiative.status == 'Planning' %}selected{% endif %}>Planning</option>
+                        <option value="On Hold" {% if initiative.status == 'On Hold' %}selected{% endif %}>On Hold</option>
+                        <option value="Complete" {% if initiative.status == 'Complete' %}selected{% endif %}>Complete</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.75rem;">Target</label>
+                    <input type="text" name="target" class="form-input" value="{{ initiative.target or '' }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.75rem;">Owner(s)</label>
+                    <input type="text" name="owner" class="form-input" value="{{ initiative.owner or '' }}">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label" style="font-size: 0.75rem;">Description</label>
+                    <input type="text" name="description" class="form-input" value="{{ initiative.description or '' }}">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label" style="font-size: 0.75rem;">Notes</label>
+                    <textarea name="next_steps" class="form-input" rows="2">{{ initiative.next_steps or '' }}</textarea>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label" style="font-size: 0.75rem;">Document Links <span class="text-muted">(optional)</span></label>
+                    <div id="edit-doc-links-{{ initiative.id }}" class="doc-links-container">
+                        {% if initiative.document_links %}
+                            {% for link in initiative.document_links %}
+                        <div class="doc-link-row">
+                            <input type="text" name="doc_label[]" class="form-input" placeholder="Label" value="{{ link.label }}" style="width: 35%;">
+                            <input type="url" name="doc_url[]" class="form-input" placeholder="https://..." value="{{ link.url }}" style="width: 55%;">
+                            <button type="button" class="btn-remove-link" onclick="removeDocLink(this)" title="Remove">×</button>
+                        </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="doc-link-row">
+                            <input type="text" name="doc_label[]" class="form-input" placeholder="Label (e.g. Confluence)" style="width: 35%;">
+                            <input type="url" name="doc_url[]" class="form-input" placeholder="https://..." style="width: 55%;">
+                            <button type="button" class="btn-remove-link" onclick="removeDocLink(this)" title="Remove">×</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="addDocLink('edit-doc-links-{{ initiative.id }}')">+ Add Link</button>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleTrackerEdit({{ initiative.id }})">Cancel</button>
+            </div>
+        </form>
+    </td>
+</tr>
