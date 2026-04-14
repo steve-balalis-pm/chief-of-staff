@@ -11,10 +11,16 @@
         {% else %}
         <span class="badge badge-success">Live</span>
         {% endif %}
-        <button class="btn btn-secondary" hx-get="/jira/refresh" hx-target="#jira-content" hx-swap="innerHTML">
+        <button class="btn btn-secondary" hx-get="/jira/refresh{% if current_project %}?project={{ current_project }}{% endif %}" hx-target="#jira-content" hx-swap="innerHTML">
             ↻ Refresh
         </button>
     </div>
+</div>
+
+<div class="project-tabs">
+    <a href="/jira" class="project-tab {% if not current_project %}active{% endif %}">All Projects</a>
+    <a href="/jira?project=JUPITER" class="project-tab {% if current_project == 'JUPITER' %}active{% endif %}">JUPITER</a>
+    <a href="/jira?project=DIT" class="project-tab {% if current_project == 'DIT' %}active{% endif %}">DIT (Moneyball)</a>
 </div>
 
 <div id="jira-content">
@@ -263,6 +269,35 @@
 
 {% block head %}
 <style>
+    .project-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .project-tab {
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+        color: var(--color-text-muted);
+        background: var(--bg-secondary);
+        border: 1px solid var(--color-border);
+        transition: all 0.15s;
+    }
+    
+    .project-tab:hover {
+        background: var(--color-border);
+        color: var(--color-text);
+    }
+    
+    .project-tab.active {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+    
     .page-header {
         display: flex;
         justify-content: space-between;

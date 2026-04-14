@@ -16,9 +16,11 @@ import time
 import sys
 from pathlib import Path
 
+PORT = 8001
+
 def open_browser():
     time.sleep(1.5)
-    webbrowser.open("http://localhost:8000")
+    webbrowser.open(f"http://localhost:{PORT}")
 
 if __name__ == "__main__":
     # Add app directory to path
@@ -26,7 +28,7 @@ if __name__ == "__main__":
     
     print("=" * 50)
     print("  Chief of Staff Hub")
-    print("  http://localhost:8000")
+    print(f"  http://localhost:{PORT}")
     print("=" * 50)
     
     # Open browser automatically
@@ -35,7 +37,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=PORT,
         reload=True,
         reload_dirs=["app"]
     )

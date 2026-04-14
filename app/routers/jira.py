@@ -1,5 +1,6 @@
 """Jira router - Live Jira dashboard and field checking."""
-from fastapi import APIRouter, Request
+from typing import Optional
+from fastapi import APIRouter, Request, Query
 from app.template_config import templates
 from app.services.jira_service import JiraService
 from app.services.field_checker import FieldChecker
@@ -9,13 +10,13 @@ router = APIRouter(prefix="/jira", tags=["jira"])
 
 @router.get("")
 @router.get("/")
-async def jira_dashboard(request: Request):
+async def jira_dashboard(request: Request, project: Optional[str] = Query(None)):
     """Main Jira dashboard with live ticket data."""
     jira_service = JiraService()
     field_checker = FieldChecker(jira_service)
     
-    # Get dashboard data
-    dashboard_data = jira_service.get_all_dashboard_data()
+    # Get dashboard data filtered by project
+    dashboard_data = jira_service.get_all_dashboard_data(project)
     
     # Get field completeness summary
     field_summary = field_checker.get_actionable_summary()
@@ -25,22 +26,24 @@ async def jira_dashboard(request: Request):
         "data": dashboard_data,
         "field_summary": field_summary,
         "is_live": dashboard_data.get("is_live", False),
+        "current_project": project,
     })
 
 
 @router.get("/refresh")
-async def refresh_data(request: Request):
+async def refresh_data(request: Request, project: Optional[str] = Query(None)):
     """HTMX endpoint to refresh Jira data."""
     jira_service = JiraService()
     field_checker = FieldChecker(jira_service)
     
-    dashboard_data = jira_service.get_all_dashboard_data()
+    dashboard_data = jira_service.get_all_dashboard_data(project)
     field_summary = field_checker.get_actionable_summary()
     
     return templates.TemplateResponse(request, "partials/jira_content.html", {
         "data": dashboard_data,
         "field_summary": field_summary,
         "is_live": dashboard_data.get("is_live", False),
+        "current_project": project,
     })
 
 
