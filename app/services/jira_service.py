@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 # Configuration
 # Configure this for your Jira instance
-JIRA_BASE_URL = os.environ.get("JIRA_BASE_URL", "https://your-org.atlassian.net")
+JIRA_BASE_URL = os.environ.get("JIRA_BASE_URL", "https://accoladeinc.atlassian.net")
 JIRA_DATA_DIR = Path(__file__).parent.parent.parent / "jira_data"
 
 
@@ -185,21 +185,21 @@ class JiraService:
         return tickets[:max_results]
     
     # Predefined queries - load from JSON files and filter locally
-    def get_my_open_tickets(self, project: str = "JUPITER") -> List[JiraTicket]:
-        """Get all open tickets for a project."""
+    def get_my_open_tickets(self, project: str = None) -> List[JiraTicket]:
+        """Get all open tickets for a project (or all projects if None)."""
         return self._get_all_tickets(project)
     
-    def get_in_progress(self, project: str = "JUPITER") -> List[JiraTicket]:
+    def get_in_progress(self, project: str = None) -> List[JiraTicket]:
         """Get tickets currently in progress."""
         tickets = self._get_all_tickets(project)
         return [t for t in tickets if t.status.lower() == "in progress"]
     
-    def get_high_priority(self, project: str = "JUPITER") -> List[JiraTicket]:
+    def get_high_priority(self, project: str = None) -> List[JiraTicket]:
         """Get high/highest priority tickets."""
         tickets = self._get_all_tickets(project)
         return [t for t in tickets if t.priority.lower() in ("highest", "high")]
     
-    def get_recently_updated(self, project: str = "JUPITER", days: int = 2) -> List[JiraTicket]:
+    def get_recently_updated(self, project: str = None, days: int = 2) -> List[JiraTicket]:
         """Get tickets updated in the last N days."""
         data = self._load_json("recently_updated.json")
         tickets = [self._parse_ticket(issue) for issue in self._get_issues_from_data(data)]
@@ -207,7 +207,7 @@ class JiraService:
             tickets = [t for t in tickets if t.key.startswith(project)]
         return tickets
     
-    def get_stale_tickets(self, project: str = "JUPITER", days: int = 5) -> List[JiraTicket]:
+    def get_stale_tickets(self, project: str = None, days: int = 5) -> List[JiraTicket]:
         """Get tickets not updated in N+ days."""
         data = self._load_json("stale.json")
         tickets = [self._parse_ticket(issue) for issue in self._get_issues_from_data(data)]
@@ -215,7 +215,7 @@ class JiraService:
             tickets = [t for t in tickets if t.key.startswith(project)]
         return tickets
     
-    def get_upcoming_deadlines(self, project: str = "JUPITER", days: int = 7) -> List[JiraTicket]:
+    def get_upcoming_deadlines(self, project: str = None, days: int = 7) -> List[JiraTicket]:
         """Get tickets with upcoming due dates."""
         data = self._load_json("time_sensitive.json")
         tickets = [self._parse_ticket(issue) for issue in self._get_issues_from_data(data)]
@@ -223,12 +223,12 @@ class JiraService:
             tickets = [t for t in tickets if t.key.startswith(project)]
         return [t for t in tickets if t.due_date and not t.is_overdue]
     
-    def get_overdue(self, project: str = "JUPITER") -> List[JiraTicket]:
+    def get_overdue(self, project: str = None) -> List[JiraTicket]:
         """Get overdue tickets."""
         tickets = self._get_all_tickets(project)
         return [t for t in tickets if t.is_overdue]
     
-    def get_tpe_tickets(self, project: str = "JUPITER") -> List[JiraTicket]:
+    def get_tpe_tickets(self, project: str = None) -> List[JiraTicket]:
         """Get TPE-labeled tickets."""
         tickets = self._get_all_tickets(project)
         return [t for t in tickets if "TPE" in [l.upper() for l in t.labels]]
@@ -248,17 +248,21 @@ class JiraService:
                     keys.add(key)
         return keys
 
-    def get_all_dashboard_data(self) -> Dict[str, Any]:
-        """Get all data needed for the Jira dashboard."""
+    def get_all_dashboard_data(self, project: str = None) -> Dict[str, Any]:
+        """Get all data needed for the Jira dashboard.
+        
+        Args:
+            project: Filter by project key (JUPITER, DIT) or None for all projects
+        """
         return {
-            "my_tickets": self.get_my_open_tickets(),
-            "in_progress": self.get_in_progress(),
-            "high_priority": self.get_high_priority(),
-            "recently_updated": self.get_recently_updated(),
-            "stale": self.get_stale_tickets(),
-            "upcoming_deadlines": self.get_upcoming_deadlines(),
-            "overdue": self.get_overdue(),
-            "tpe_tickets": self.get_tpe_tickets(),
+            "my_tickets": self.get_my_open_tickets(project),
+            "in_progress": self.get_in_progress(project),
+            "high_priority": self.get_high_priority(project),
+            "recently_updated": self.get_recently_updated(project),
+            "stale": self.get_stale_tickets(project),
+            "upcoming_deadlines": self.get_upcoming_deadlines(project),
+            "overdue": self.get_overdue(project),
+            "tpe_tickets": self.get_tpe_tickets(project),
             "is_live": self.is_configured,
         }
     
