@@ -134,8 +134,12 @@ class PortfolioService:
                 "description": r.description,
                 "next_steps": r.next_steps,
                 "owner": r.owner,
+                "impact": r.impact,
+                "jira_epic": r.jira_epic,
+                "completed_date": r.completed_date.isoformat() if r.completed_date else None,
                 "confluence_link": r.confluence_link,
                 "document_links": r.get_document_links(),
+                "group_label": r.group_label,
             }
             for r in rows
         ]
@@ -167,11 +171,18 @@ class PortfolioService:
         lines.extend(["## In-Flight Initiatives", ""])
 
         for initiative in initiatives:
+            if initiative['status'] in ('Complete', 'On Hold'):
+                continue
             lines.append(f"### {initiative['name']}")
             lines.append(f"- **Status:** {initiative['status']}")
             lines.append(f"- **Target:** {initiative['target']}")
             lines.append(f"- **Owner:** {initiative['owner']}")
-            lines.append(f"- {initiative['description']}")
+            if initiative.get('impact'):
+                lines.append(f"- **Impact:** {initiative['impact']}")
+            if initiative.get('jira_epic'):
+                lines.append(f"- **Epic:** {initiative['jira_epic']}")
+            if initiative.get('description'):
+                lines.append(f"- {initiative['description']}")
             lines.append("")
 
         return "\n".join(lines)

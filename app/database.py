@@ -25,3 +25,11 @@ def init_db():
     """Initialize database tables."""
     from app.models import task, accomplishment, meeting_note, initiative  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    # One-time migrations for columns added after initial schema creation
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE initiatives ADD COLUMN group_label VARCHAR(200)"))
+            conn.commit()
+        except Exception:
+            pass  # column already exists

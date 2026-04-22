@@ -72,6 +72,15 @@ async def update_impact(
 
 # --- Initiative CRUD ---
 
+@router.post("/initiatives/reorder")
+async def reorder_initiatives(payload: list, db: Session = Depends(get_db)):
+    """Persist drag-and-drop sort order. Expects JSON list of {id, sort_order}."""
+    for item in payload:
+        db.query(Initiative).filter(Initiative.id == item["id"]).update({"sort_order": item["sort_order"]})
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/initiatives")
 async def add_initiative(
     request: Request,
@@ -81,7 +90,10 @@ async def add_initiative(
     description: str = Form(""),
     next_steps: str = Form(""),
     owner: str = Form(""),
+    impact: str = Form(""),
+    jira_epic: str = Form(""),
     confluence_link: str = Form(""),
+    group_label: str = Form(""),
     db: Session = Depends(get_db),
 ):
     """Add a new initiative."""
@@ -105,7 +117,10 @@ async def add_initiative(
         description=description,
         next_steps=next_steps,
         owner=owner,
+        impact=impact or None,
+        jira_epic=jira_epic or None,
         confluence_link=confluence_link or None,
+        group_label=group_label or None,
         sort_order=max_order,
     )
     initiative.set_document_links(document_links)
@@ -125,10 +140,15 @@ async def update_initiative(
     description: str = Form(""),
     next_steps: str = Form(""),
     owner: str = Form(""),
+    impact: str = Form(""),
+    jira_epic: str = Form(""),
+    completed_date: str = Form(""),
     confluence_link: str = Form(""),
+    group_label: str = Form(""),
     db: Session = Depends(get_db),
 ):
     """Update an existing initiative."""
+    from datetime import date as date_type
     initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
     if not initiative:
         return RedirectResponse(url="/tracker", status_code=303)
@@ -151,8 +171,21 @@ async def update_initiative(
     initiative.description = description
     initiative.next_steps = next_steps
     initiative.owner = owner
+    initiative.impact = impact or None
+    initiative.jira_epic = jira_epic or None
     initiative.confluence_link = confluence_link or None
+    initiative.group_label = group_label or None
     initiative.set_document_links(document_links)
+
+    # Parse completed_date
+    if completed_date and completed_date.strip():
+        try:
+            initiative.completed_date = date_type.fromisoformat(completed_date.strip())
+        except ValueError:
+            pass
+    else:
+        initiative.completed_date = None
+
     db.commit()
     logger.info("Initiative updated: id=%s name=%s", initiative_id, name)
     return RedirectResponse(url="/tracker", status_code=303)

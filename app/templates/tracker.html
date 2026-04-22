@@ -45,12 +45,29 @@
                     <input type="text" name="owner" class="form-input" placeholder="e.g. Janet + Ellen">
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
-                    <label class="form-label">Description <span class="text-muted" style="font-weight: normal;">(what / why)</span></label>
+                    <label class="form-label">Description <span class="text-muted" style="font-weight: normal;">(what)</span></label>
                     <input type="text" name="description" class="form-input" placeholder="Brief summary of the workstream">
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Impact <span class="text-muted" style="font-weight: normal;">(why it matters — business value)</span></label>
+                    <input type="text" name="impact" class="form-input" placeholder="e.g. Reduces manual ops burden and unblocks Q3 Databricks cutover">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Jira Epic <span class="text-muted" style="font-weight: normal;">(optional)</span></label>
+                    <input type="text" name="jira_epic" class="form-input" placeholder="e.g. JUPITER-1530">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Group / Team Tag <span class="text-muted" style="font-weight: normal;">(optional — e.g. Data Engineering, Platform)</span></label>
+                    <input type="text" name="group_label" class="form-input" placeholder="e.g. Data Engineering">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Completed Date <span class="text-muted" style="font-weight: normal;">(if complete)</span></label>
+                    <input type="date" name="completed_date" class="form-input">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
                     <label class="form-label">Next Steps <span class="text-muted" style="font-weight: normal;">(what's happening now)</span></label>
-                    <textarea name="next_steps" class="form-input" rows="2" placeholder="e.g. Building Wave 1 feeds; Janet confirming table availability"></textarea>
+                    <textarea name="next_steps" class="form-input" rows="3" placeholder="- Item 1&#10;- Item 2&#10;- **Bold** for emphasis"></textarea>
+                    <div class="markdown-hint">Supports markdown: <code>- bullet</code>, <code>**bold**</code>, <code>_italic_</code>, <code>[label](url)</code> for links</div>
                 </div>
                                 <div class="form-group" style="grid-column: 1 / -1;">
                                     <label class="form-label">Document Links <span class="text-muted" style="font-weight: normal;">(optional)</span></label>
@@ -72,6 +89,25 @@
     </div>
 </div>
 
+{# Health summary banner #}
+{% set active_count = initiatives | length %}
+{% set at_risk_count = initiatives | selectattr('status', 'in', ['At Risk']) | list | length %}
+{% set on_hold_count = on_hold_initiatives | length %}
+{% set completed_count = completed_initiatives | length %}
+<div class="workstream-health-bar">
+    <span class="health-stat health-active">{{ active_count }} active</span>
+    <span class="health-divider">·</span>
+    {% if at_risk_count > 0 %}
+    <span class="health-stat health-risk">{{ at_risk_count }} at risk</span>
+    {% else %}
+    <span class="health-stat health-ok">0 at risk</span>
+    {% endif %}
+    <span class="health-divider">·</span>
+    <span class="health-stat health-hold">{{ on_hold_count }} on hold</span>
+    <span class="health-divider">·</span>
+    <span class="health-stat health-done">{{ completed_count }} completed</span>
+</div>
+
 {# Tracker table #}
 <div class="card">
     <div class="card-header purple">📊 Active Workstreams</div>
@@ -80,23 +116,37 @@
         <table class="tracker-table">
             <thead>
                 <tr>
-                    <th style="width: 22%;">Workstream</th>
+                    <th style="width: 2%;"></th>
+                    <th style="width: 20%;">Workstream</th>
                     <th style="width: 12%;">Status</th>
-                    <th style="width: 33%;">Next Steps</th>
+                    <th style="width: 31%;">Next Steps</th>
                     <th style="width: 15%;">Owner(s)</th>
                     <th style="width: 10%;">Target</th>
                     <th style="width: 5%;">Docs</th>
-                    <th style="width: 3%;"></th>
+                    <th style="width: 5%;"></th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="active-tbody">
                 {% for initiative in initiatives %}
-                <tr class="tracker-row" id="tracker-row-{{ initiative.id }}">
+                <tr class="tracker-row" id="tracker-row-{{ initiative.id }}" data-id="{{ initiative.id }}">
+                    {# Drag handle #}
+                    <td class="text-center" style="padding: 12px 4px;"><span class="drag-handle" title="Drag to reorder">⠿</span></td>
                     {# Display row #}
                     <td id="tracker-display-{{ initiative.id }}">
-                        <div class="tracker-name">{{ initiative.name }}</div>
+                        <div class="tracker-name">
+                            {{ initiative.name }}
+                            {% if initiative.jira_epic %}
+                            <a href="https://accoladeinc.atlassian.net/browse/{{ initiative.jira_epic }}" target="_blank" class="jira-epic-badge" title="Open in Jira">{{ initiative.jira_epic }}</a>
+                            {% endif %}
+                        </div>
+                        {% if initiative.group_label %}
+                        <span class="group-badge">{{ initiative.group_label }}</span>
+                        {% endif %}
                         {% if initiative.description %}
                         <div class="tracker-desc">{{ initiative.description }}</div>
+                        {% endif %}
+                        {% if initiative.impact %}
+                        <div class="tracker-impact">💡 {{ initiative.impact }}</div>
                         {% endif %}
                     </td>
                     <td>
@@ -110,7 +160,7 @@
                             {{ initiative.status }}
                         </span>
                     </td>
-                    <td class="tracker-next-steps">{{ initiative.next_steps or '—' }}</td>
+                    <td class="tracker-next-steps"><div class="markdown-content" data-markdown="{{ initiative.next_steps | e }}">{{ initiative.next_steps or '—' }}</div></td>
                     <td class="text-sm">{{ initiative.owner or '—' }}</td>
                     <td class="text-sm text-muted">{{ initiative.target or '—' }}</td>
                     <td class="text-center doc-links-cell">
@@ -129,12 +179,11 @@
                     </td>
                     <td>
                         <div class="flex gap-1">
-                            <button class="btn-initiative-edit" onclick="toggleTrackerEdit({{ initiative.id }})">Edit</button>
+                            <a href="/tracker/edit/{{ initiative.id }}" class="btn-initiative-edit">Edit</a>
                             <button class="btn-delete-task initiative-delete" onclick="handleInitiativeDelete(this, {{ initiative.id }})" title="Delete">×</button>
                         </div>
                     </td>
                 </tr>
-                {% include "partials/initiative_edit_row.html" %}
                 {% endfor %}
             </tbody>
         </table>
@@ -157,28 +206,41 @@
         <table class="tracker-table">
             <thead>
                 <tr>
-                    <th style="width: 22%;">Workstream</th>
+                    <th style="width: 2%;"></th>
+                    <th style="width: 20%;">Workstream</th>
                     <th style="width: 12%;">Status</th>
-                    <th style="width: 33%;">Reason / Notes</th>
+                    <th style="width: 31%;">Reason / Notes</th>
                     <th style="width: 15%;">Owner(s)</th>
                     <th style="width: 10%;">Target</th>
                     <th style="width: 5%;">Docs</th>
-                    <th style="width: 3%;"></th>
+                    <th style="width: 5%;"></th>
                 </tr>
             </thead>
             <tbody>
                 {% for initiative in on_hold_initiatives %}
-                <tr class="tracker-row archived-row" id="tracker-row-{{ initiative.id }}">
+                <tr class="tracker-row archived-row" id="tracker-row-{{ initiative.id }}" data-id="{{ initiative.id }}">
+                    <td></td>
                     <td id="tracker-display-{{ initiative.id }}">
-                        <div class="tracker-name">{{ initiative.name }}</div>
+                        <div class="tracker-name">
+                            {{ initiative.name }}
+                            {% if initiative.jira_epic %}
+                            <a href="https://accoladeinc.atlassian.net/browse/{{ initiative.jira_epic }}" target="_blank" class="jira-epic-badge">{{ initiative.jira_epic }}</a>
+                            {% endif %}
+                        </div>
+                        {% if initiative.group_label %}
+                        <span class="group-badge">{{ initiative.group_label }}</span>
+                        {% endif %}
                         {% if initiative.description %}
                         <div class="tracker-desc">{{ initiative.description }}</div>
+                        {% endif %}
+                        {% if initiative.impact %}
+                        <div class="tracker-impact">💡 {{ initiative.impact }}</div>
                         {% endif %}
                     </td>
                     <td>
                         <span class="status-pill status-on-hold">⏸ On Hold</span>
                     </td>
-                    <td class="tracker-next-steps">{{ initiative.next_steps or '—' }}</td>
+                    <td class="tracker-next-steps"><div class="markdown-content" data-markdown="{{ initiative.next_steps | e }}">{{ initiative.next_steps or '—' }}</div></td>
                     <td class="text-sm">{{ initiative.owner or '—' }}</td>
                     <td class="text-sm text-muted">{{ initiative.target or '—' }}</td>
                     <td class="text-center doc-links-cell">
@@ -197,12 +259,11 @@
                     </td>
                     <td>
                         <div class="flex gap-1">
-                            <button class="btn-initiative-edit" onclick="toggleTrackerEdit({{ initiative.id }})">Edit</button>
+                            <a href="/tracker/edit/{{ initiative.id }}" class="btn-initiative-edit">Edit</a>
                             <button class="btn-delete-task initiative-delete" onclick="handleInitiativeDelete(this, {{ initiative.id }})" title="Delete">×</button>
                         </div>
                     </td>
                 </tr>
-                {% include "partials/initiative_edit_row.html" %}
                 {% endfor %}
             </tbody>
         </table>
@@ -220,30 +281,49 @@
         <table class="tracker-table">
             <thead>
                 <tr>
-                    <th style="width: 22%;">Workstream</th>
+                    <th style="width: 2%;"></th>
+                    <th style="width: 20%;">Workstream</th>
                     <th style="width: 12%;">Status</th>
-                    <th style="width: 33%;">Outcome / Notes</th>
+                    <th style="width: 31%;">Outcome / Notes</th>
                     <th style="width: 15%;">Owner(s)</th>
                     <th style="width: 10%;">Completed</th>
                     <th style="width: 5%;">Docs</th>
-                    <th style="width: 3%;"></th>
+                    <th style="width: 5%;"></th>
                 </tr>
             </thead>
             <tbody>
                 {% for initiative in completed_initiatives %}
-                <tr class="tracker-row archived-row" id="tracker-row-{{ initiative.id }}">
+                <tr class="tracker-row archived-row" id="tracker-row-{{ initiative.id }}" data-id="{{ initiative.id }}">
+                    <td></td>
                     <td id="tracker-display-{{ initiative.id }}">
-                        <div class="tracker-name">{{ initiative.name }}</div>
+                        <div class="tracker-name">
+                            {{ initiative.name }}
+                            {% if initiative.jira_epic %}
+                            <a href="https://accoladeinc.atlassian.net/browse/{{ initiative.jira_epic }}" target="_blank" class="jira-epic-badge">{{ initiative.jira_epic }}</a>
+                            {% endif %}
+                        </div>
+                        {% if initiative.group_label %}
+                        <span class="group-badge">{{ initiative.group_label }}</span>
+                        {% endif %}
                         {% if initiative.description %}
                         <div class="tracker-desc">{{ initiative.description }}</div>
+                        {% endif %}
+                        {% if initiative.impact %}
+                        <div class="tracker-impact">💡 {{ initiative.impact }}</div>
                         {% endif %}
                     </td>
                     <td>
                         <span class="status-pill status-complete">✅ Complete</span>
                     </td>
-                    <td class="tracker-next-steps">{{ initiative.next_steps or '—' }}</td>
+                    <td class="tracker-next-steps"><div class="markdown-content" data-markdown="{{ initiative.next_steps | e }}">{{ initiative.next_steps or '—' }}</div></td>
                     <td class="text-sm">{{ initiative.owner or '—' }}</td>
-                    <td class="text-sm text-muted">{{ initiative.target or '—' }}</td>
+                    <td class="text-sm text-muted">
+                        {% if initiative.completed_date %}
+                        {{ initiative.completed_date }}
+                        {% else %}
+                        {{ initiative.target or '—' }}
+                        {% endif %}
+                    </td>
                     <td class="text-center doc-links-cell">
                         {% if initiative.document_links %}
                             {% for link in initiative.document_links %}
@@ -260,12 +340,11 @@
                     </td>
                     <td>
                         <div class="flex gap-1">
-                            <button class="btn-initiative-edit" onclick="toggleTrackerEdit({{ initiative.id }})">Edit</button>
+                            <a href="/tracker/edit/{{ initiative.id }}" class="btn-initiative-edit">Edit</a>
                             <button class="btn-delete-task initiative-delete" onclick="handleInitiativeDelete(this, {{ initiative.id }})" title="Delete">×</button>
                         </div>
                     </td>
                 </tr>
-                {% include "partials/initiative_edit_row.html" %}
                 {% endfor %}
             </tbody>
         </table>
@@ -274,8 +353,84 @@
 {% endif %}
 {% endblock %}
 
+{% block head %}
+<script src="/static/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<style>
+    .markdown-content {
+        line-height: 1.5;
+    }
+    .markdown-content ul, .markdown-content ol {
+        margin: 0;
+        padding-left: 1.25em;
+    }
+    .markdown-content li {
+        margin-bottom: 0.25em;
+    }
+    .markdown-content li:last-child {
+        margin-bottom: 0;
+    }
+    .markdown-content p {
+        margin: 0 0 0.5em 0;
+    }
+    .markdown-content p:last-child {
+        margin-bottom: 0;
+    }
+    .markdown-content strong {
+        font-weight: 600;
+        color: var(--color-text);
+    }
+    .markdown-content em {
+        font-style: italic;
+    }
+    .markdown-content code {
+        background: var(--bg-tertiary);
+        padding: 0.1em 0.3em;
+        border-radius: 3px;
+        font-size: 0.85em;
+    }
+    .markdown-content mark, .markdown-content .highlight {
+        background: #fff3cd;
+        padding: 0.1em 0.2em;
+        border-radius: 2px;
+    }
+    .markdown-hint {
+        font-size: 0.7rem;
+        color: var(--color-text-muted);
+        margin-top: 4px;
+    }
+    .markdown-hint code {
+        background: var(--bg-tertiary);
+        padding: 0.1em 0.3em;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
+// Render all markdown content on page load (safe — won't block other JS if marked fails)
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({ breaks: true, gfm: true });
+        }
+        document.querySelectorAll('.markdown-content').forEach(function(el) {
+            var raw = el.getAttribute('data-markdown') || el.textContent;
+            if (raw && raw.trim() !== '—') {
+                if (typeof marked !== 'undefined') {
+                    el.innerHTML = marked.parse(raw);
+                } else {
+                    el.style.whiteSpace = 'pre-wrap';
+                }
+            }
+        });
+    } catch(e) {
+        console.warn('Markdown rendering failed:', e);
+    }
+});
+
 function toggleAddForm() {
     var form = document.getElementById('add-workstream-form');
     form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -326,6 +481,29 @@ function removeDocLink(btn) {
         row.querySelectorAll('input').forEach(function(input) { input.value = ''; });
     }
 }
+
+// Drag-and-drop reorder for active workstreams
+document.addEventListener('DOMContentLoaded', function() {
+    var tbody = document.getElementById('active-tbody');
+    if (tbody && typeof Sortable !== 'undefined') {
+        Sortable.create(tbody, {
+            handle: '.drag-handle',
+            animation: 150,
+            filter: '.tracker-edit-row',
+            onEnd: function() {
+                var rows = [...tbody.querySelectorAll('tr.tracker-row[data-id]')];
+                var payload = rows.map(function(r, i) {
+                    return { id: parseInt(r.dataset.id), sort_order: i };
+                });
+                fetch('/portfolio/initiatives/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            }
+        });
+    }
+});
 
 // Override delete for tracker table rows
 function handleInitiativeDelete(btn, initiativeId) {
