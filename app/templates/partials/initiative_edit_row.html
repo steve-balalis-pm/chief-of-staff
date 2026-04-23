@@ -1,6 +1,6 @@
 {# Inline edit row - expects 'initiative' variable in context #}
 <tr id="tracker-edit-{{ initiative.id }}" style="display: none;" class="tracker-edit-row">
-    <td colspan="7">
+    <td colspan="8">
         <form action="/portfolio/initiatives/{{ initiative.id }}/update" method="post" class="tracker-edit-form">
             <div class="grid grid-2" style="gap: 8px;">
                 <div class="form-group" style="grid-column: 1 / -1;">
@@ -19,20 +19,37 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" style="font-size: 0.75rem;">Target</label>
-                    <input type="text" name="target" class="form-input" value="{{ initiative.target or '' }}">
+                    <label class="form-label" style="font-size: 0.75rem;">Target / Timeline</label>
+                    <input type="text" name="target" class="form-input" value="{{ initiative.target or '' }}" placeholder="e.g. Q3 2026">
                 </div>
                 <div class="form-group">
                     <label class="form-label" style="font-size: 0.75rem;">Owner(s)</label>
                     <input type="text" name="owner" class="form-input" value="{{ initiative.owner or '' }}">
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
-                    <label class="form-label" style="font-size: 0.75rem;">Description</label>
-                    <input type="text" name="description" class="form-input" value="{{ initiative.description or '' }}">
+                    <label class="form-label" style="font-size: 0.75rem;">Description <span class="text-muted">(what)</span></label>
+                    <input type="text" name="description" class="form-input" value="{{ initiative.description or '' }}" placeholder="Brief summary of the workstream">
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
-                    <label class="form-label" style="font-size: 0.75rem;">Notes</label>
-                    <textarea name="next_steps" class="form-input" rows="2">{{ initiative.next_steps or '' }}</textarea>
+                    <label class="form-label" style="font-size: 0.75rem;">Impact <span class="text-muted">(why it matters — business value)</span></label>
+                    <input type="text" name="impact" class="form-input" value="{{ initiative.impact or '' }}" placeholder="e.g. Reduces manual ops burden and unblocks Q3 Databricks cutover">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.75rem;">Jira Epic <span class="text-muted">(optional)</span></label>
+                    <input type="text" name="jira_epic" class="form-input" value="{{ initiative.jira_epic or '' }}" placeholder="e.g. JUPITER-1530">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.75rem;">Group / Team Tag <span class="text-muted">(optional)</span></label>
+                    <input type="text" name="group_label" class="form-input" value="{{ initiative.group_label or '' }}" placeholder="e.g. Data Engineering">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.75rem;">Completed Date {% if initiative.status != 'Complete' %}<span class="text-muted">(set when marking Complete)</span>{% endif %}</label>
+                    <input type="date" name="completed_date" class="form-input" value="{{ initiative.completed_date or '' }}">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label" style="font-size: 0.75rem;">Next Steps / Notes</label>
+                    <textarea name="next_steps" class="form-input" rows="3">{{ initiative.next_steps or '' }}</textarea>
+                    <div class="markdown-hint">Supports markdown: <code>- bullet</code>, <code>**bold**</code>, <code>_italic_</code>, <code>`code`</code></div>
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
                     <label class="form-label" style="font-size: 0.75rem;">Document Links <span class="text-muted">(optional)</span></label>

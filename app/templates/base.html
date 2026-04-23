@@ -14,10 +14,9 @@
         <div class="nav-brand">
             <span class="brand-icon">📋</span>
             <span class="brand-text">Chief of Staff Hub</span>
-            <span class="data-freshness" title="Jira data last refreshed">
-                <span class="freshness-icon">🔄</span>
-                <span class="freshness-time">{{ jira_freshness() }}</span>
-            </span>
+        </div>
+        <div class="data-freshness" title="Jira data last refreshed: {{ jira_freshness() }}">
+            <span class="freshness-time">{{ jira_freshness() }}</span>
         </div>
         <div class="nav-links">
             <a href="/" class="nav-link {% if active == 'dashboard' %}active{% endif %}">Dashboard</a>

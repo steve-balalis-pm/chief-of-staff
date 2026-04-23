@@ -1,11 +1,14 @@
 """Tracker router - manager-facing workstream status tracker."""
+import json
 from datetime import date
 
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.database import get_db
+from app.models.initiative import Initiative
 from app.template_config import templates
 
 router = APIRouter()
@@ -29,6 +32,84 @@ async def tracker_view(request: Request, db: Session = Depends(get_db)):
     })
 
 
+@router.get("/edit/{initiative_id}", response_class=HTMLResponse)
+async def edit_initiative_form(request: Request, initiative_id: int, db: Session = Depends(get_db)):
+    """Full-page edit form for an initiative."""
+    initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+    if not initiative:
+        return RedirectResponse(url="/tracker/", status_code=303)
+    return templates.TemplateResponse(request, "tracker_edit.html", {
+        "active": "tracker",
+        "initiative": {
+            "id": initiative.id,
+            "name": initiative.name,
+            "status": initiative.status,
+            "target": initiative.target or "",
+            "description": initiative.description or "",
+            "next_steps": initiative.next_steps or "",
+            "owner": initiative.owner or "",
+            "impact": initiative.impact or "",
+            "jira_epic": initiative.jira_epic or "",
+            "group_label": initiative.group_label or "",
+            "completed_date": initiative.completed_date.isoformat() if initiative.completed_date else "",
+            "document_links": initiative.get_document_links(),
+        }
+    })
+
+
+@router.post("/edit/{initiative_id}")
+async def save_initiative_edit(
+    request: Request,
+    initiative_id: int,
+    name: str = Form(...),
+    status: str = Form("In Progress"),
+    target: str = Form(""),
+    description: str = Form(""),
+    next_steps: str = Form(""),
+    owner: str = Form(""),
+    impact: str = Form(""),
+    jira_epic: str = Form(""),
+    completed_date: str = Form(""),
+    group_label: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Save changes from the full-page edit form."""
+    from datetime import date as date_type
+    initiative = db.query(Initiative).filter(Initiative.id == initiative_id).first()
+    if not initiative:
+        return RedirectResponse(url="/tracker/", status_code=303)
+
+    form_data = await request.form()
+    doc_labels = form_data.getlist("doc_label[]")
+    doc_urls = form_data.getlist("doc_url[]")
+    document_links = [
+        {"label": lbl.strip() or "Link", "url": url.strip()}
+        for lbl, url in zip(doc_labels, doc_urls) if url and url.strip()
+    ]
+
+    initiative.name = name
+    initiative.status = status
+    initiative.target = target
+    initiative.description = description
+    initiative.next_steps = next_steps
+    initiative.owner = owner
+    initiative.impact = impact or None
+    initiative.jira_epic = jira_epic or None
+    initiative.group_label = group_label or None
+    initiative.set_document_links(document_links)
+
+    if completed_date and completed_date.strip():
+        try:
+            initiative.completed_date = date_type.fromisoformat(completed_date.strip())
+        except ValueError:
+            pass
+    else:
+        initiative.completed_date = None
+
+    db.commit()
+    return RedirectResponse(url="/tracker/", status_code=303)
+
+
 @router.get("/share", response_class=HTMLResponse)
 async def tracker_share(request: Request, db: Session = Depends(get_db)):
     """Printable bi-weekly update for manager — no nav, clean layout."""
@@ -37,9 +118,11 @@ async def tracker_share(request: Request, db: Session = Depends(get_db)):
     initiatives = portfolio_service.get_initiatives()
     active = [i for i in initiatives if i["status"] not in ("Complete", "On Hold")]
     on_hold = [i for i in initiatives if i["status"] == "On Hold"]
+    completed = [i for i in initiatives if i["status"] == "Complete"]
     return templates.TemplateResponse(request, "tracker_share.html", {
         "active_initiatives": active,
         "on_hold_initiatives": on_hold,
+        "completed_initiatives": completed,
         "report_date": date.today().strftime("%B %d, %Y"),
     })
 

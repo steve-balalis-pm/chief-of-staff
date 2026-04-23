@@ -5,24 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bi-Weekly Update — {{ report_date }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/static/marked.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; font-size: 14px; color: #1a1a2e; background: #fff; padding: 40px; max-width: 900px; margin: 0 auto; }
-        .share-header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 28px; }
+        body { font-family: 'Inter', sans-serif; font-size: 14px; color: #1a1a2e; background: #fff; padding: 40px; max-width: 960px; margin: 0 auto; }
+        .share-header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; }
         .share-title { font-size: 1.4rem; font-weight: 700; color: #1a1a2e; }
         .share-subtitle { font-size: 0.9rem; color: #64748b; margin-top: 4px; }
         .share-date { font-size: 0.85rem; color: #94a3b8; margin-top: 8px; }
-        .section-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 12px; margin-top: 32px; }
+
+        /* Stats bar */
+        .stats-bar { display: flex; gap: 24px; padding: 14px 0; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; }
+        .stat-item { display: flex; flex-direction: column; align-items: center; }
+        .stat-number { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+        .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-top: 3px; }
+        .stat-active .stat-number { color: #2563eb; }
+        .stat-risk .stat-number { color: #dc2626; }
+        .stat-hold .stat-number { color: #d97706; }
+        .stat-done .stat-number { color: #059669; }
+        .stat-divider { width: 1px; background: #e2e8f0; align-self: stretch; }
+
+        .section-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 12px; margin-top: 28px; padding-bottom: 6px; border-bottom: 2px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; }
         thead { background: #f8fafc; }
-        th { text-align: left; padding: 10px 14px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+        th { text-align: left; padding: 10px 14px; font-size: 0.73rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-bottom: 1px solid #e2e8f0; }
         td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
         tr:last-child td { border-bottom: none; }
-        .workstream-name { font-weight: 600; color: #1a1a2e; font-size: 0.9rem; }
-        .workstream-desc { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+
+        .workstream-name { font-weight: 600; color: #1a1a2e; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .workstream-desc { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+        .workstream-impact { font-size: 0.75rem; color: #059669; margin-top: 4px; font-style: italic; }
+        .jira-epic-badge { display: inline-block; font-size: 0.68rem; font-weight: 600; font-family: monospace; padding: 1px 6px; border-radius: 3px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; text-decoration: none; white-space: nowrap; }
+        .jira-epic-badge:hover { background: #dbeafe; }
         .next-steps-text { font-size: 0.875rem; color: #334155; line-height: 1.5; }
         .owner-text { font-size: 0.825rem; color: #475569; }
         .target-text { font-size: 0.8rem; color: #94a3b8; }
+        .completed-date { font-size: 0.8rem; color: #059669; font-weight: 500; }
+
         .status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; padding: 3px 8px; border-radius: 12px; white-space: nowrap; }
         .status-in-progress { background: #fef9c3; color: #713f12; }
         .status-on-track { background: #dcfce7; color: #14532d; }
@@ -30,15 +49,27 @@
         .status-planning { background: #dbeafe; color: #1e3a8a; }
         .status-on-hold { background: #f1f5f9; color: #475569; }
         .status-complete { background: #f0fdf4; color: #14532d; }
+
         .empty-note { color: #94a3b8; font-style: italic; font-size: 0.8rem; }
         .docs-cell { white-space: nowrap; }
         .doc-link { text-decoration: none; margin-right: 3px; }
         .doc-link:hover { opacity: 0.7; }
+
+        /* Markdown rendering */
+        .markdown-content ul, .markdown-content ol { margin: 0; padding-left: 1.25em; }
+        .markdown-content li { margin-bottom: 0.2em; }
+        .markdown-content li:last-child { margin-bottom: 0; }
+        .markdown-content p { margin: 0 0 0.4em 0; }
+        .markdown-content p:last-child { margin-bottom: 0; }
+        .markdown-content strong { font-weight: 600; }
+        .markdown-content code { background: #f1f5f9; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.85em; }
+
         .actions { display: flex; gap: 12px; margin-bottom: 24px; }
         .btn-action { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; background: #fff; color: #374151; }
         .btn-action:hover { background: #f8fafc; }
         .btn-copy { background: #4f46e5; color: #fff; border-color: #4f46e5; }
         .btn-copy:hover { background: #4338ca; }
+
         @media print {
             .actions { display: none; }
             body { padding: 20px; }
@@ -53,6 +84,33 @@
     <div class="share-date">{{ report_date }}</div>
 </div>
 
+{# Stats bar #}
+{% set active_count = active_initiatives | length %}
+{% set at_risk_count = active_initiatives | selectattr('status', 'equalto', 'At Risk') | list | length %}
+{% set on_hold_count = on_hold_initiatives | length %}
+{% set completed_count = completed_initiatives | length %}
+<div class="stats-bar">
+    <div class="stat-item stat-active">
+        <div class="stat-number">{{ active_count }}</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item stat-risk">
+        <div class="stat-number">{{ at_risk_count }}</div>
+        <div class="stat-label">At Risk</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item stat-hold">
+        <div class="stat-number">{{ on_hold_count }}</div>
+        <div class="stat-label">On Hold</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item stat-done">
+        <div class="stat-number">{{ completed_count }}</div>
+        <div class="stat-label">Completed</div>
+    </div>
+</div>
+
 <div class="actions">
     <button class="btn-action btn-copy" onclick="copyMarkdown()">Copy as Markdown</button>
     <button class="btn-action" onclick="window.print()">Print / Save PDF</button>
@@ -64,20 +122,26 @@
 <table>
     <thead>
         <tr>
-            <th style="width: 20%;">Workstream</th>
+            <th style="width: 22%;">Workstream</th>
             <th style="width: 10%;">Status</th>
-            <th style="width: 36%;">Next Steps</th>
+            <th style="width: 32%;">Next Steps</th>
             <th style="width: 14%;">Owner(s)</th>
             <th style="width: 10%;">Target</th>
-            <th style="width: 10%;">Docs</th>
+            <th style="width: 12%;">Docs</th>
         </tr>
     </thead>
     <tbody>
         {% for i in active_initiatives %}
         <tr>
             <td>
-                <div class="workstream-name">{{ i.name }}</div>
+                <div class="workstream-name">
+                    {{ i.name }}
+                    {% if i.jira_epic %}
+                    <a href="https://accoladeinc.atlassian.net/browse/{{ i.jira_epic }}" target="_blank" class="jira-epic-badge">{{ i.jira_epic }}</a>
+                    {% endif %}
+                </div>
                 {% if i.description %}<div class="workstream-desc">{{ i.description }}</div>{% endif %}
+                {% if i.impact %}<div class="workstream-impact">💡 {{ i.impact }}</div>{% endif %}
             </td>
             <td>
                 <span class="status-pill status-{{ i.status | lower | replace(' ', '-') }}">
@@ -88,7 +152,11 @@
                     {{ i.status }}
                 </span>
             </td>
-            <td class="next-steps-text">{{ i.next_steps or '<span class="empty-note">No update yet</span>' | safe }}</td>
+            <td class="next-steps-text">
+                {% if i.next_steps %}
+                <div class="markdown-content" data-markdown="{{ i.next_steps | e }}">{{ i.next_steps }}</div>
+                {% else %}<span class="empty-note">No update yet</span>{% endif %}
+            </td>
             <td class="owner-text">{{ i.owner or '—' }}</td>
             <td class="target-text">{{ i.target or '—' }}</td>
             <td class="docs-cell">
@@ -101,6 +169,7 @@
                         {% elif '.xls' in link.url|lower or 'excel' in link.label|lower %}📊
                         {% elif 'jira' in link.url|lower %}🎫
                         {% else %}🔗{% endif %}
+                        {{ link.label }}
                     </a>
                     {% endfor %}
                 {% else %}—{% endif %}
@@ -118,17 +187,69 @@
 <table>
     <thead>
         <tr>
-            <th style="width: 22%;">Workstream</th>
-            <th style="width: 55%;">Notes</th>
-            <th style="width: 23%;">Owner / Target</th>
+            <th style="width: 28%;">Workstream</th>
+            <th style="width: 49%;">Reason / Notes</th>
+            <th style="width: 23%;">Owner · Target</th>
         </tr>
     </thead>
     <tbody>
         {% for i in on_hold_initiatives %}
         <tr>
-            <td><div class="workstream-name">{{ i.name }}</div></td>
-            <td class="next-steps-text">{{ i.next_steps or i.description or '—' }}</td>
-            <td class="owner-text">{{ i.owner or '—' }}{% if i.target %} · {{ i.target }}{% endif %}</td>
+            <td>
+                <div class="workstream-name">{{ i.name }}</div>
+                {% if i.impact %}<div class="workstream-impact">💡 {{ i.impact }}</div>{% endif %}
+            </td>
+            <td class="next-steps-text">
+                {% set notes = i.next_steps or i.description %}
+                {% if notes %}
+                <div class="markdown-content" data-markdown="{{ notes | e }}">{{ notes }}</div>
+                {% else %}—{% endif %}
+            </td>
+            <td class="owner-text">{{ i.owner or '—' }}{% if i.target %} · <span class="target-text">{{ i.target }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if completed_initiatives %}
+<div class="section-label">Completed</div>
+<table>
+    <thead>
+        <tr>
+            <th style="width: 28%;">Workstream</th>
+            <th style="width: 44%;">Outcome / Notes</th>
+            <th style="width: 16%;">Owner</th>
+            <th style="width: 12%;">Completed</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in completed_initiatives %}
+        <tr>
+            <td>
+                <div class="workstream-name">
+                    {{ i.name }}
+                    {% if i.jira_epic %}
+                    <a href="https://accoladeinc.atlassian.net/browse/{{ i.jira_epic }}" target="_blank" class="jira-epic-badge">{{ i.jira_epic }}</a>
+                    {% endif %}
+                </div>
+                {% if i.description %}<div class="workstream-desc">{{ i.description }}</div>{% endif %}
+                {% if i.impact %}<div class="workstream-impact">💡 {{ i.impact }}</div>{% endif %}
+            </td>
+            <td class="next-steps-text">
+                {% set outcome = i.next_steps or i.description %}
+                {% if outcome %}
+                <div class="markdown-content" data-markdown="{{ outcome | e }}">{{ outcome }}</div>
+                {% else %}—{% endif %}
+            </td>
+            <td class="owner-text">{{ i.owner or '—' }}</td>
+            <td>
+                {% if i.completed_date %}
+                <span class="completed-date">{{ i.completed_date }}</span>
+                {% else %}
+                <span class="target-text">{{ i.target or '—' }}</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
@@ -136,27 +257,52 @@
 {% endif %}
 
 <script>
+marked.setOptions({ breaks: true, gfm: true });
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.markdown-content').forEach(function(el) {
+        var raw = el.getAttribute('data-markdown') || el.textContent;
+        if (raw && raw.trim() !== '—' && raw.trim() !== '') {
+            el.innerHTML = marked.parse(raw);
+        }
+    });
+});
+
 function copyMarkdown() {
     var lines = [];
     lines.push('# Bi-Weekly Program Update');
     lines.push('**Steven Balalis · TPM · JUPITER & Moneyball**');
     lines.push('**Date:** {{ report_date }}');
     lines.push('');
+    lines.push('## Summary');
+    lines.push('{{ active_initiatives | length }} active · {{ active_initiatives | selectattr("status", "equalto", "At Risk") | list | length }} at risk · {{ on_hold_initiatives | length }} on hold · {{ completed_initiatives | length }} completed');
+    lines.push('');
+    {% if active_initiatives %}
     lines.push('## Active Workstreams');
     lines.push('');
-    lines.push('| Workstream | Status | Next Steps | Owner(s) | Target |');
-    lines.push('|---|---|---|---|---|');
+    lines.push('| Workstream | Status | Impact | Next Steps | Owner | Target |');
+    lines.push('|---|---|---|---|---|---|');
     {% for i in active_initiatives %}
-    lines.push('| **{{ i.name | replace("'", "\\'") | replace("|", "\\|") }}** | {{ i.status }} | {{ (i.next_steps or "—") | replace("'", "\\'") | replace("|", "\\|") | replace("\n", " ") }} | {{ (i.owner or "—") | replace("'", "\\'") }} | {{ i.target or "—" }} |');
+    lines.push('| **{{ i.name | replace("'", "\\'") | replace("|", "/") }}**{% if i.jira_epic %} ({{ i.jira_epic }}){% endif %} | {{ i.status }} | {{ (i.impact or "—") | replace("'", "\\'") | replace("|", "/") }} | {{ (i.next_steps or "—") | replace("'", "\\'") | replace("|", "/") | replace("\n", " ") }} | {{ (i.owner or "—") | replace("'", "\\'") }} | {{ i.target or "—" }} |');
     {% endfor %}
-    {% if on_hold_initiatives %}
     lines.push('');
+    {% endif %}
+    {% if on_hold_initiatives %}
     lines.push('## On Hold');
     lines.push('');
-    lines.push('| Workstream | Notes |');
+    lines.push('| Workstream | Reason / Notes |');
     lines.push('|---|---|');
     {% for i in on_hold_initiatives %}
-    lines.push('| **{{ i.name | replace("'", "\\'") | replace("|", "\\|") }}** | {{ ((i.next_steps or i.description) or "—") | replace("'", "\\'") | replace("|", "\\|") | replace("\n", " ") }} |');
+    lines.push('| **{{ i.name | replace("'", "\\'") | replace("|", "/") }}** | {{ ((i.next_steps or i.description) or "—") | replace("'", "\\'") | replace("|", "/") | replace("\n", " ") }} |');
+    {% endfor %}
+    lines.push('');
+    {% endif %}
+    {% if completed_initiatives %}
+    lines.push('## Completed');
+    lines.push('');
+    lines.push('| Workstream | Impact | Owner | Completed |');
+    lines.push('|---|---|---|---|');
+    {% for i in completed_initiatives %}
+    lines.push('| **{{ i.name | replace("'", "\\'") | replace("|", "/") }}** | {{ (i.impact or i.description or "—") | replace("'", "\\'") | replace("|", "/") }} | {{ (i.owner or "—") | replace("'", "\\'") }} | {{ i.completed_date or i.target or "—" }} |');
     {% endfor %}
     {% endif %}
 

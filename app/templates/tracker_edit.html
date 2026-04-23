@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Workstream — {{ initiative.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h1 class="page-title">Edit Workstream</h1>
+        <p class="page-subtitle">{{ initiative.name }}</p>
+    </div>
+    <a href="/tracker/" class="btn btn-secondary">← Back to Tracker</a>
+</div>
+
+<div class="card" style="max-width: 820px;">
+    <div class="card-header purple">✏️ Edit Details</div>
+    <div class="card-body">
+        <form action="/tracker/edit/{{ initiative.id }}" method="post">
+            <div class="grid grid-2" style="gap: 12px;">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Workstream Name</label>
+                    <input type="text" name="name" class="form-input" value="{{ initiative.name }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="In Progress" {% if initiative.status == 'In Progress' %}selected{% endif %}>🟡 In Progress</option>
+                        <option value="On Track"    {% if initiative.status == 'On Track'    %}selected{% endif %}>🟢 On Track</option>
+                        <option value="At Risk"     {% if initiative.status == 'At Risk'     %}selected{% endif %}>🔴 At Risk</option>
+                        <option value="Planning"    {% if initiative.status == 'Planning'    %}selected{% endif %}>🔵 Planning</option>
+                        <option value="On Hold"     {% if initiative.status == 'On Hold'     %}selected{% endif %}>⏸ On Hold</option>
+                        <option value="Complete"    {% if initiative.status == 'Complete'    %}selected{% endif %}>✅ Complete</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Target / Timeline</label>
+                    <input type="text" name="target" class="form-input" value="{{ initiative.target }}" placeholder="e.g. Q3 2026">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Owner(s)</label>
+                    <input type="text" name="owner" class="form-input" value="{{ initiative.owner }}" placeholder="e.g. Janet + Ellen">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Group / Team Tag <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
+                    <input type="text" name="group_label" class="form-input" value="{{ initiative.group_label }}" placeholder="e.g. Data Engineering">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Description <span class="text-muted" style="font-weight:normal;">(what)</span></label>
+                    <input type="text" name="description" class="form-input" value="{{ initiative.description }}" placeholder="Brief summary of the workstream">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Impact <span class="text-muted" style="font-weight:normal;">(why it matters)</span></label>
+                    <input type="text" name="impact" class="form-input" value="{{ initiative.impact }}" placeholder="e.g. Reduces manual ops burden">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Next Steps / Notes</label>
+                    <textarea name="next_steps" class="form-input" rows="5" placeholder="Markdown supported: - bullet, **bold**, _italic_">{{ initiative.next_steps }}</textarea>
+                    <div style="font-size: 0.7rem; color: var(--color-text-muted); margin-top: 4px;">Supports markdown: <code>- bullet</code>, <code>**bold**</code>, <code>[link](url)</code></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Jira Epic <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
+                    <input type="text" name="jira_epic" class="form-input" value="{{ initiative.jira_epic }}" placeholder="e.g. JUPITER-1530">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Completed Date <span class="text-muted" style="font-weight:normal;">(set when marking Complete)</span></label>
+                    <input type="date" name="completed_date" class="form-input" value="{{ initiative.completed_date }}">
+                </div>
+
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Document Links <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
+                    <div id="doc-links-container" class="doc-links-container">
+                        {% if initiative.document_links %}
+                            {% for link in initiative.document_links %}
+                            <div class="doc-link-row">
+                                <input type="text"  name="doc_label[]" class="form-input" placeholder="Label" value="{{ link.label }}" style="width:35%;">
+                                <input type="url"   name="doc_url[]"   class="form-input" placeholder="https://..." value="{{ link.url }}" style="width:55%;">
+                                <button type="button" class="btn-remove-link" onclick="this.parentElement.remove()" title="Remove">×</button>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="doc-link-row">
+                                <input type="text" name="doc_label[]" class="form-input" placeholder="Label (e.g. Confluence)" style="width:35%;">
+                                <input type="url"  name="doc_url[]"  class="form-input" placeholder="https://..." style="width:55%;">
+                                <button type="button" class="btn-remove-link" onclick="this.parentElement.remove()" title="Remove">×</button>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm mt-2"
+                            onclick="var r=document.createElement('div');r.className='doc-link-row';r.innerHTML='<input type=text name=doc_label[] class=form-input placeholder=Label style=width:35%;><input type=url name=doc_url[] class=form-input placeholder=https://... style=width:55%;><button type=button class=btn-remove-link onclick=this.parentElement.remove() title=Remove>×</button>';document.getElementById('doc-links-container').appendChild(r);">
+                        + Add Link
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="/tracker/" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

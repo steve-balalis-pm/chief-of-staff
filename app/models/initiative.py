@@ -1,6 +1,6 @@
 """Initiative model - in-flight project tracking for portfolio view."""
 import json
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Date
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -18,6 +18,10 @@ class Initiative(Base):
     owner = Column(String(200))
     confluence_link = Column(String(500), nullable=True)  # Legacy: single Confluence link
     document_links = Column(Text, nullable=True)  # JSON array: [{"label": "...", "url": "..."}]
+    impact = Column(Text, nullable=True)        # Why this matters — business value statement
+    jira_epic = Column(String(200), nullable=True)  # Jira epic key or URL (e.g. JUPITER-1530)
+    completed_date = Column(Date, nullable=True)    # Actual completion date (set when marked Complete)
+    group_label = Column(String(200), nullable=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

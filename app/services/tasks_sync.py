@@ -1,5 +1,6 @@
 """TASKS.md bidirectional sync service."""
 import re
+import json
 import hashlib
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -12,12 +13,24 @@ from app.models.accomplishment import Accomplishment
 
 TASKS_MD_PATH = Path(__file__).parent.parent.parent / "TASKS.md"
 
+
+def _parse_sub_items(raw: Optional[str]) -> list:
+    """Safely parse the sub_items JSON column into a list."""
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
 class TasksSyncService:
     """Service for syncing tasks between database and TASKS.md."""
     
     SECTION_MAP = {
         "active_today": "## 🔴 Active — Today",
         "this_week": "## 🟡 This Week",
+        "next_week": "## 🔵 Next Week",
         "ongoing": "## 🟢 Ongoing / Background",
         "completed": "## ✅ Completed This Week",
         "waiting": "## ⏳ Waiting On",
@@ -118,6 +131,7 @@ class TasksSyncService:
             "line_hash": hashlib.md5(line.encode()).hexdigest()[:16],
             "indent": len(indent),
             "recurring": recurring,
+            "sub_items": [],
         }
     
     def sync_from_md(self):
@@ -131,10 +145,9 @@ class TasksSyncService:
                 ).first()
                 
                 if existing:
-                    # DB is source of truth for content after first import — don't overwrite
+                    # DB is source of truth for content and priority after first import — don't overwrite
                     existing.section = task_data["section"]
                     existing.subsection = task_data["subsection"]
-                    existing.priority = task_data["priority"]
                     existing.recurring = task_data.get("recurring")
                     # Don't overwrite done/completed_at for recurring tasks — DB is source of truth
                     if not existing.recurring:
@@ -221,6 +234,7 @@ class TasksSyncService:
                 "jira_key": None,
                 "recurring": db_task.recurring,
                 "line_hash": None,
+                "sub_items": _parse_sub_items(db_task.sub_items),
             }
             section = db_task.section or "this_week"
             md_sections.setdefault(section, [])
@@ -244,7 +258,9 @@ class TasksSyncService:
                     ).first()
                     if db_task:
                         task["id"] = db_task.id
+                        task["priority"] = db_task.priority  # DB is source of truth for priority
                         task["recurring"] = db_task.recurring
+                        task["sub_items"] = _parse_sub_items(db_task.sub_items)
 
                         if db_task.recurring:
                             # Recurring tasks reset based on their interval

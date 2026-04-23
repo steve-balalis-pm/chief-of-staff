@@ -16,14 +16,26 @@ router = APIRouter()
 @router.get("/", response_class=HTMLResponse)
 async def tasks_view(request: Request, db: Session = Depends(get_db)):
     """Full tasks view."""
+    from datetime import date
     from app.services.tasks_sync import TasksSyncService
     
     sync_service = TasksSyncService(db)
     tasks_data = sync_service.get_all_tasks()
     
     return templates.TemplateResponse(request, "tasks.html", {
-        "sections": tasks_data
+        "sections": tasks_data,
+        "today_str": date.today().isoformat(),
     })
+
+@router.post("/sync")
+async def sync_tasks(db: Session = Depends(get_db)):
+    """Sync TASKS.md → DB. Call this after any direct TASKS.md edit to keep the DB current."""
+    from app.services.tasks_sync import TasksSyncService
+    sync_service = TasksSyncService(db)
+    sync_service.sync_from_md()
+    logger.info("Manual TASKS.md → DB sync triggered")
+    return {"status": "ok"}
+
 
 @router.post("/toggle/{task_id}")
 async def toggle_task(task_id: int, db: Session = Depends(get_db)):
@@ -96,9 +108,10 @@ async def move_task(
 async def edit_task_content(
     task_id: int,
     content: str = Form(...),
+    priority: str = Form("medium"),
     db: Session = Depends(get_db)
 ):
-    """Update a task's content. DB is authoritative — TASKS.md is not touched."""
+    """Update a task's content and priority. DB is authoritative — TASKS.md is not touched."""
     from fastapi.responses import Response
     from app.models.task import Task
 
@@ -106,6 +119,7 @@ async def edit_task_content(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     task.content = content.strip()
+    task.priority = priority
     db.commit()
     logger.info("Task content edited: id=%s", task_id)
     return Response(content="", headers={"HX-Refresh": "true"})
@@ -123,3 +137,100 @@ async def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     logger.info("Task deleted: id=%s", task_id)
     return HTMLResponse("")
+
+
+# ── Subtask endpoints ────────────────────────────────────────────────────────
+
+@router.post("/{task_id}/subtasks/add")
+async def add_subtask(
+    task_id: int,
+    text: str = Form(...),
+    due_date: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Append a new subtask (with optional due date) to a task's sub_items JSON column."""
+    import json
+    from fastapi.responses import Response
+    from app.models.task import Task as TaskModel
+
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    items = []
+    if task.sub_items:
+        try:
+            items = json.loads(task.sub_items)
+        except (json.JSONDecodeError, TypeError):
+            items = []
+
+    new_item: dict = {"text": text.strip(), "done": False}
+    if due_date and due_date.strip():
+        new_item["due_date"] = due_date.strip()
+    items.append(new_item)
+    task.sub_items = json.dumps(items)
+    db.commit()
+    logger.info("Subtask added: task_id=%s total=%s", task_id, len(items))
+    return Response(content="", headers={"HX-Refresh": "true"})
+
+
+@router.post("/{task_id}/subtasks/{idx}/toggle")
+async def toggle_subtask(
+    task_id: int,
+    idx: int,
+    db: Session = Depends(get_db),
+):
+    """Toggle the done state of a subtask by index."""
+    import json
+    from fastapi.responses import Response
+    from app.models.task import Task as TaskModel
+
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    items = []
+    if task.sub_items:
+        try:
+            items = json.loads(task.sub_items)
+        except (json.JSONDecodeError, TypeError):
+            items = []
+
+    if 0 <= idx < len(items):
+        items[idx]["done"] = not items[idx].get("done", False)
+        task.sub_items = json.dumps(items)
+        db.commit()
+        logger.info("Subtask toggled: task_id=%s idx=%s done=%s", task_id, idx, items[idx]["done"])
+
+    return Response(content="", headers={"HX-Refresh": "true"})
+
+
+@router.delete("/{task_id}/subtasks/{idx}")
+async def delete_subtask(
+    task_id: int,
+    idx: int,
+    db: Session = Depends(get_db),
+):
+    """Remove a subtask by index."""
+    import json
+    from fastapi.responses import Response
+    from app.models.task import Task as TaskModel
+
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    items = []
+    if task.sub_items:
+        try:
+            items = json.loads(task.sub_items)
+        except (json.JSONDecodeError, TypeError):
+            items = []
+
+    if 0 <= idx < len(items):
+        items.pop(idx)
+        task.sub_items = json.dumps(items)
+        db.commit()
+        logger.info("Subtask deleted: task_id=%s idx=%s", task_id, idx)
+
+    return Response(content="", headers={"HX-Refresh": "true"})

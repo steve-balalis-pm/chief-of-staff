@@ -1,0 +1,26 @@
+---
+description: Atlassian (Jira + Confluence) is read-only — never write without explicit permission
+alwaysApply: true
+---
+
+# Atlassian / Jira — Read Only
+
+Steven handles all writes to Jira and Confluence himself.
+
+## Rules
+
+- **Never** create, update, transition, comment on, or delete Jira issues unless Steven explicitly says "go ahead and create/update/write".
+- **Never** create, update, or publish Confluence pages without explicit instruction.
+- Reading Jira tickets, searching issues, fetching Confluence pages, and querying project data is always allowed.
+- If a skill or workflow would normally auto-write to Atlassian, **stop before that step**, show Steven the draft, and wait for him to say "yes, do it" or "I'll handle it".
+
+## Examples
+
+✅ OK to do without asking:
+- `jira_get_issue`, `jira_search_issues`, `confluence_search`, `confluence_get_page`
+
+❌ Never do without explicit "please write/create/update":
+- `jira_create_issue`, `jira_update_issue`, `jira_transition_issue`, `jira_add_comment`
+- `confluence_create_page`, `confluence_update_page`
+
+When in doubt, show the draft and ask: "Want me to submit this, or will you handle it?"
